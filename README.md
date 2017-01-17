@@ -18,6 +18,7 @@ This project is largely inspired by
 - [Installation](#installation)
 - [Usage](#usage)
   - [Queuing Jobs](#queuing-jobs)
+- [LICENSE](#license)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -43,7 +44,7 @@ Defining jobs is dead simple. Take a look at this:
   ;; STEP 1: Require the Farmhand namespace
   (:require [com.buckryan.farmhand.core :refer [enqueue]))
 
-;; STEP 2: Jobs are just regular ol' Clojure functions, they just need to be public:
+;; STEP 2: Jobs are regular ol' Clojure functions, they just need to be public:
 (defn my-long-running-function
   [a b]
   (Thread/sleep 20000)
@@ -76,3 +77,8 @@ application or run standalone. Here's how you embed it:
     ;; complete:
     (stop-server server)))
 ```
+
+## LICENSE
+
+Please see [LICENSE](https://github.com/b-ryan/farmhand/blob/master/LICENSE)
+for details.
