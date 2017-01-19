@@ -27,7 +27,7 @@ This project is largely inspired by
 Leiningen:
 
 ```
-[com.buckryan/farmhand "0.1.0-SNAPSHOT"]
+[com.buckryan/farmhand "0.1.0"]
 ```
 
 ## Usage
