@@ -1,6 +1,8 @@
 (defproject com.buckryan/farmhand "0.1.0-SNAPSHOT"
   :description "Simple and powerful background jobs"
   :url "https://github.com/b-ryan/farmhand"
+  :deploy-repositories [["releases" :clojars]
+                        ["snapshots" :clojars]]
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [org.clojure/tools.logging "0.3.1"]
                  [redis.clients/jedis "2.9.0"]]
