@@ -1,6 +1,6 @@
 # Farmhand
 
-Farmhand is a library for Clojure for queuing jobs to be processed in the
+Farmhand is a Clojure library for queuing jobs to be processed in the
 background. It is backed by Redis to enable ease of use, flexibility, and great
 performance.
 
@@ -18,6 +18,7 @@ This project is largely inspired by
 - [Installation](#installation)
 - [Usage](#usage)
   - [Queuing Jobs](#queuing-jobs)
+  - [Processing Jobs](#processing-jobs)
 - [LICENSE](#license)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -56,9 +57,13 @@ Defining jobs is dead simple. Take a look at this:
           :args [1 2]})
 ```
 
-That's it! Next you'll want to get a server running to process the job. Well
-that's pretty simple too! The server can be embedded into an existing
-application or run standalone. Here's how you embed it:
+That's it!
+
+### Processing Jobs
+
+Next you'll want to get a server running to process the job. Well that's pretty
+simple too! The server can be embedded into an existing application or run
+standalone. Here's how you embed it:
 
 ```clojure
 (ns my.application
