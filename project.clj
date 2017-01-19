@@ -1,4 +1,4 @@
-(defproject com.buckryan/farmhand "0.1.0"
+(defproject com.buckryan/farmhand "0.1.1-SNAPSHOT"
   :description "Simple and powerful background jobs"
   :url "https://github.com/b-ryan/farmhand"
   :deploy-repositories [["releases" :clojars]
