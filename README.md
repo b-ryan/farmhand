@@ -69,7 +69,7 @@ standalone. Here's how you embed it:
 (ns my.application
   ;; STEP 1: Require the Farmhand namespace
   (:require [farmhand.core :refer [start-server stop-server])
-  (:gen-class)
+  (:gen-class))
 
 
 (defn -main
