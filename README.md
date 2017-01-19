@@ -42,7 +42,7 @@ Defining jobs is dead simple. Take a look at this:
 ```clojure
 (ns my.namespace
   ;; STEP 1: Require the Farmhand namespace
-  (:require [com.buckryan.farmhand.core :refer [enqueue]))
+  (:require [farmhand.core :refer [enqueue]))
 
 ;; STEP 2: Jobs are regular ol' Clojure functions, they just need to be public:
 (defn my-long-running-function
@@ -63,7 +63,7 @@ application or run standalone. Here's how you embed it:
 ```clojure
 (ns my.application
   ;; STEP 1: Require the Farmhand namespace
-  (:require [com.buckryan.farmhand.core :refer [start-server stop-server])
+  (:require [farmhand.core :refer [start-server stop-server])
   (:gen-class)
 
 

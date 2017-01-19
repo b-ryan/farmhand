@@ -1,0 +1,2 @@
+;; This file is used in unit tests
+{:num-workers 4}
