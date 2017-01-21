@@ -17,27 +17,50 @@
       (.exec transaction)
       (:job-id job))))
 
+(defonce
+  ^{:doc "An atom that contains the Jedis pool of the most recent invocation of
+         start-server.
+
+         For many applications, this atom will do the trick when you want to
+         spin up a single server in your application and have easy access to
+         the pool."}
+  pool*
+  (atom nil))
+
+(defonce
+  ^{:doc "An atom that contains the most recent server that was spun up. You
+         can use this to easily stop a server without needing to store the
+         server instance yourself."}
+  server*
+  (atom nil))
+
 (defn start-server
-  ([] (start-server (config/load-config)))
-  ([{queue-defs :queues redis-conf :redis pool :pool :as config}]
-   (let [pool (or pool (redis/create-pool redis-conf))
+  ([] (start-server {}))
+  ([config-overrides]
+   (let [config (merge (config/load-config) config-overrides)
+         pool (or (:pool config) (redis/create-pool (:redis config)))
          shutdown (atom false)
          work-futures (atom nil)
-         mk-worker #(future (work/main-loop shutdown pool queue-defs))]
-     (reset! work-futures (doall (repeatedly (:num-workers config) mk-worker)))
-     {:pool pool
-      :shutdown shutdown
-      :work-futures work-futures})))
+         worker-fn #(future (work/main-loop shutdown pool (:queues config)))
+         workers (doall (repeatedly (:num-workers config) worker-fn))
+         _ (reset! work-futures workers)
+         server {:pool pool
+                 :shutdown shutdown
+                 :work-futures work-futures}
+         ]
+     (dosync
+       (reset! pool* pool)
+       (reset! server* server))
+     server)))
 
 (defn stop-server
-  [{:keys [shutdown work-futures]}]
+  [{:keys [pool shutdown work-futures]}]
   (do
     (reset! shutdown true)
     (doall (map #(deref %) @work-futures))
-    (reset! shutdown false)))
+    (redis/close-pool pool)))
 
 (defn -main
-  "I don't do a whole lot ... yet."
   [& _]
   (start-server))
 
@@ -46,12 +69,12 @@
 (comment
 
   (do
-    (def server* (start-server (assoc config/defaults :num-workers 2)))
+    (start-server {:num-workers 4})
     (defn slow-job [& args] (Thread/sleep 10000) :slow-result)
     (defn failing-job [& args] (throw (ex-info "foo" {:a :b}))))
 
-  (enqueue {:fn-var #'slow-job :args ["i am slow"]} (:pool server*))
-  (enqueue {:fn-var #'failing-job :args ["fail"]} (:pool server*))
+  (enqueue {:fn-var #'slow-job :args ["i am slow"]} @pool*)
+  (enqueue {:fn-var #'failing-job :args ["fail"]} @pool*)
 
-  (stop-server server*)
+  (stop-server @server*)
   )

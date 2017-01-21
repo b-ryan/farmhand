@@ -21,6 +21,10 @@
                  ^String password
                  ^Integer database))})
 
+(defn close-pool
+  [{jedis :jedis}]
+  (.close ^JedisPool jedis))
+
 (defn str-arr #^"[Ljava.lang.String;" [& args] (into-array args))
 (defn seq->str-arr #^"[Ljava.lang.String;" [items] (into-array items))
 

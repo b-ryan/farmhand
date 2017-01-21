@@ -4,7 +4,7 @@
             [farmhand.redis :as r]
             [farmhand.utils :as utils]))
 
-(def defaults {:redis {:host "localhost"}
+(def defaults {:redis {}
                :num-workers 2
                :queues [{:name "default"}]})
 
