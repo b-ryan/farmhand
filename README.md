@@ -11,14 +11,14 @@ This project is largely inspired by
 [Sidekiq](https://github.com/mperham/sidekiq) and
 [RQ](https://github.com/nvie/rq).
 
+**Warning** This library is in an alpha state and subject to change.
+
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
 - [Installation](#installation)
 - [Usage](#usage)
-  - [Queuing Jobs](#queuing-jobs)
-  - [Processing Jobs](#processing-jobs)
 - [LICENSE](#license)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -33,54 +33,34 @@ Leiningen:
 
 ## Usage
 
-### Queuing Jobs
+Before starting, you need to have a Redis server running. Visit
+[redis.io](https://redis.io/) to download. This example assumes Redis is running
+on localhost.
 
-You need to first have a Redis server running. Visit
-[redis.io](https://redis.io/) to download.
-
-Defining jobs is dead simple. Take a look at this:
+Farmhand is designed for both ease of use and power. Below is an example showing
+you the most common usage.
 
 ```clojure
 (ns my.namespace
   ;; STEP 1: Require the Farmhand namespace
-  (:require [farmhand.core :refer [enqueue]))
+  (:require [farmhand.core :as farmhand))
 
-;; STEP 2: Jobs are regular ol' Clojure functions, they just need to be public:
+;; STEP 2: Instantiate a Farmhand server with 4 workers.
+(farmhand/start-server {:redis {:host "localhost"}
+                        :num-workers 4})
+
+;; STEP 3: Jobs are regular ol' Clojure functions:
 (defn my-long-running-function
   [a b]
   (Thread/sleep 20000)
-  (* a b)
+  (* a b))
 
-;; STEP 3: Queue that job!
-(enqueue {:queue "myjobs" ;; optional; defaults to "default"
-          :fn-var #'my-long-running-function
-          :args [1 2]})
-```
+;; STEP 4: Queue that job! It will be processed by the running Farmhand server.
+(farmhand/enqueue {:fn-var #'my-long-running-function
+                   :args [1 2]})
 
-That's it!
-
-### Processing Jobs
-
-Next you'll want to get a server running to process the job. Well that's pretty
-simple too! The server can be embedded into an existing application or run
-standalone. Here's how you embed it:
-
-```clojure
-(ns my.application
-  ;; STEP 1: Require the Farmhand namespace
-  (:require [farmhand.core :refer [start-server stop-server])
-  (:gen-class))
-
-
-(defn -main
-  [& args]
-  ;; STEP 2: Start the server:
-  (let [server (start-server)]
-    ;; STEP 3: Run your application until you're ready to shut down
-    ;; ...
-    ;; STEP 4: Shut down the server. This will allow any running jobs to
-    ;; complete:
-    (stop-server server)))
+;; STEP 5: Stop the server. This will allow any running jobs to complete.
+(farmhand/stop-server)
 ```
 
 ## LICENSE
