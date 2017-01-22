@@ -6,17 +6,6 @@
             [farmhand.work :as work])
   (:gen-class))
 
-(defn enqueue
-  "Saves job to Redis and pushes it onto a queue."
-  [job pool]
-  (with-jedis pool jedis
-    (let [job (jobs/normalize job)
-          transaction (.multi jedis)]
-      (jobs/save-new transaction job)
-      (queue/push transaction job)
-      (.exec transaction)
-      (:job-id job))))
-
 (defonce
   ^{:doc "An atom that contains the Jedis pool of the most recent invocation of
          start-server.
@@ -34,6 +23,22 @@
   server*
   (atom nil))
 
+(defn enqueue
+  "Pushes a job onto the queue. Returns the job's ID.
+
+  The second argument is a Farmhand pool. If a pool is not given, the value in
+  the pool* atom will be used."
+  ([job]
+   (enqueue job @pool*))
+  ([job pool]
+   (with-jedis pool jedis
+     (let [job (jobs/normalize job)
+           transaction (.multi jedis)]
+       (jobs/save-new transaction job)
+       (queue/push transaction job)
+       (.exec transaction)
+       (:job-id job)))))
+
 (defn start-server
   ([] (start-server {}))
   ([config-overrides]
@@ -46,19 +51,21 @@
          _ (reset! work-futures workers)
          server {:pool pool
                  :shutdown shutdown
-                 :work-futures work-futures}
-         ]
+                 :work-futures work-futures}]
      (dosync
        (reset! pool* pool)
        (reset! server* server))
      server)))
 
 (defn stop-server
-  [{:keys [pool shutdown work-futures]}]
-  (do
-    (reset! shutdown true)
-    (doall (map #(deref %) @work-futures))
-    (redis/close-pool pool)))
+  "Stops a running Farmhand server. If no server is given, this function will
+  stop the server in the server* atom."
+  ([] (stop-server @server*))
+  ([{:keys [pool shutdown work-futures]}]
+   (do
+     (reset! shutdown true)
+     (doall (map #(deref %) @work-futures))
+     (redis/close-pool pool))))
 
 (defn -main
   [& _]
