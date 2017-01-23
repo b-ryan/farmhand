@@ -43,7 +43,7 @@ you the most common usage.
 ```clojure
 (ns my.namespace
   ;; STEP 1: Require the Farmhand namespace
-  (:require [farmhand.core :as farmhand))
+  (:require [farmhand.core :as farmhand]))
 
 ;; STEP 2: Instantiate a Farmhand server with 4 workers.
 (farmhand/start-server {:redis {:host "localhost"}
