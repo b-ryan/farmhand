@@ -1,5 +1,7 @@
 # Farmhand
 
+[![CircleCI](https://circleci.com/gh/b-ryan/farmhand.svg?style=svg)](https://circleci.com/gh/b-ryan/farmhand)
+
 Farmhand is a Clojure library for queuing jobs to be processed in the
 background. It is backed by Redis to enable ease of use, flexibility, and great
 performance.
