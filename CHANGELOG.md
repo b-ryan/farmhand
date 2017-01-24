@@ -1,6 +1,6 @@
 # Change Log
 
-## 0.2.0-SNAPSHOT
+## 0.2.0
 
 - `core` namespace now contains `server*` and `pool*` atoms that contain the
   most recently created Farmhand server and pool.

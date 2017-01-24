@@ -30,7 +30,7 @@ This project is largely inspired by
 Leiningen:
 
 ```
-[com.buckryan/farmhand "0.1.0"]
+[com.buckryan/farmhand "0.2.0"]
 ```
 
 ## Usage
