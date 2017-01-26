@@ -2,7 +2,7 @@
   (:require [farmhand.jobs :as jobs]
             [farmhand.redis :as redis :refer [with-jedis]]
             [farmhand.utils :refer [now-millis]])
-  (:import (redis.clients.jedis RedisPipeline Tuple)))
+  (:import (redis.clients.jedis Jedis RedisPipeline Tuple)))
 
 (set! *warn-on-reflection* true)
 
@@ -18,20 +18,43 @@
   [^RedisPipeline pipeline ^String key ^String job-id]
   (.zrem pipeline key (redis/str-arr job-id)))
 
+(defn- num-items
+  [^Jedis jedis ^String key]
+  (.zcard jedis key))
+
+(def ^:private default-size 25)
+
 (defn- page-raw
-  [^String key pool {:keys [page size oldest-first?] :or {page 0 size 25}}]
-  (let [start (* page size)
+  [^Jedis jedis ^String key {:keys [page size newest-first?]}]
+  (let [page (or page 0)
+        size (or size default-size)
+        start (* page size)
         end (dec (+ start size))
-        items (with-jedis pool jedis
-                (.zrangeWithScores jedis key ^Long start ^Long end))
-        comparator (if oldest-first? #(compare %1 %2) #(compare %2 %1))]
+        items (.zrangeWithScores jedis key ^Long start ^Long end)
+        comparator (if newest-first? #(compare %2 %1) #(compare %1 %2))]
     (->> items
-         (map (fn [^Tuple tuple] [(long (.getScore tuple))
-                                  (.getElement tuple)]))
-         (sort-by first comparator))))
+         (map (fn [^Tuple tuple] {:expiration (long (.getScore tuple))
+                                  :job (.getElement tuple)}))
+         (sort-by :expiration comparator))))
+
+(defn- last-page
+  [^Jedis jedis ^String key {:keys [page size] :as options}]
+  (let [page (or page 0)
+        size (or size default-size)]
+    (-> (.zcard jedis key)
+        (/ size)
+        (Math/ceil)
+        (int)
+        (dec))))
 
 (defn page
-  [key pool options]
-  (let [results (page-raw key pool options)
-        fetch #(update-in % [1] jobs/fetch-body pool)]
-    {:items (map fetch results)}))
+  [key pool {:keys [page] :as options}]
+  (with-jedis pool jedis
+    (let [fetch-body #(update-in % [:job] jobs/fetch-body* jedis)
+          items (->> (page-raw jedis key options)
+                     (map fetch-body))
+          last-page (last-page jedis key options)
+          page (or page 0)]
+      {:items items
+       :prev-page (when (> page 0) (dec page))
+       :next-page (when (< page last-page) (inc page))})))
