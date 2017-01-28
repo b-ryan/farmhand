@@ -4,6 +4,7 @@
             [farmhand.queue :as queue]
             [farmhand.redis :as redis :refer [with-jedis]]
             [farmhand.work :as work])
+  (:import (java.util.concurrent Executors TimeUnit))
   (:gen-class))
 
 (defonce
@@ -45,13 +46,15 @@
    (let [config (merge (config/load-config) config-overrides)
          pool (or (:pool config) (redis/create-pool (:redis config)))
          shutdown (atom false)
-         work-futures (atom nil)
-         worker-fn #(future (work/main-loop shutdown pool (:queues config)))
-         workers (doall (repeatedly (:num-workers config) worker-fn))
-         _ (reset! work-futures workers)
+
+         thread-pool (Executors/newFixedThreadPool (:num-workers config))
+         run-worker #(work/main-loop shutdown pool (:queues config))
+         _ (doall (repeatedly (:num-workers config)
+                              #(.submit thread-pool ^Runnable run-worker)))
+
          server {:pool pool
                  :shutdown shutdown
-                 :work-futures work-futures}]
+                 :thread-pool thread-pool}]
      (dosync
        (reset! pool* pool)
        (reset! server* server))
@@ -59,12 +62,17 @@
 
 (defn stop-server
   "Stops a running Farmhand server. If no server is given, this function will
-  stop the server in the server* atom."
+  stop the server in the server* atom.
+
+  By default this waits up to 2 minutes for the running jobs to complete. This
+  value can be overriden with the :timeout-ms option."
   ([] (stop-server @server*))
-  ([{:keys [pool shutdown work-futures]}]
+  ([{:keys [pool shutdown thread-pool]} & {:keys [timeout-ms]
+                                           :or {timeout-ms (* 1000 60 2)}}]
    (do
      (reset! shutdown true)
-     (doall (map #(deref %) @work-futures))
+     (.shutdown thread-pool)
+     (.awaitTermination thread-pool timeout-ms TimeUnit/MILLISECONDS)
      (redis/close-pool pool))))
 
 (defn -main
