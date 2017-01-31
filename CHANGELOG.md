@@ -1,6 +1,6 @@
 # Change Log
 
-## Unreleased
+## 0.3.0
 
 - **Breaking** `farmhand.registry/page` returns data in a slightly different
   format. See commit 6d1718f38808a85badd7da02fe62158d5c3dfc80 for details.
