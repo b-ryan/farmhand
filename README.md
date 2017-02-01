@@ -21,6 +21,8 @@ This project is largely inspired by
 
 - [Installation](#installation)
 - [Usage](#usage)
+- [Features](#features)
+- [Documentation](#documentation)
 - [LICENSE](#license)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -64,6 +66,21 @@ you the most common usage.
 ;; STEP 5: Stop the server. This will allow any running jobs to complete.
 (farmhand/stop-server)
 ```
+
+## Features
+
+- Reliable - jobs will never be lost. Dequeue operations are performed using a
+  Lua
+  [script](https://github.com/b-ryan/farmhand/blob/master/resources/farmhand/dequeue.lua)
+  which Redis guarantees to be
+  [atomic](https://redis.io/commands/eval#atomicity-of-scripts).
+- Supports reading from multiple queues. See the [Queues
+  documentation](https://github.com/b-ryan/farmhand/wiki/Queues) for details.
+
+## Documentation
+
+The bulk of the documentation is available in the
+[Wiki](https://github.com/b-ryan/farmhand/wiki).
 
 ## LICENSE
 
