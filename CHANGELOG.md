@@ -1,6 +1,6 @@
 # Change Log
 
-## 0.4.0-SNAPSHOT
+## 0.4.0
 
 - **Breaking** The interface of the `farmhand.config` namespace has been
   completely redone.
