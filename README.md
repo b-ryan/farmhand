@@ -21,9 +21,9 @@ This project is largely inspired by
 
 - [Installation](#installation)
 - [Usage](#usage)
-- [Web Interface](#web-interface)
 - [Features](#features)
 - [Documentation](#documentation)
+- [Web Interface](#web-interface)
 - [LICENSE](#license)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -68,11 +68,6 @@ you the most common usage.
 (farmhand/stop-server)
 ```
 
-## Web Interface
-
-The [Farmhand UI](https://github.com/b-ryan/farmhand-ui) project provides a web
-interface for Farmhand. Hop over to that project to download.
-
 ## Features
 
 - Reliable - jobs will never be lost. Dequeue operations are performed using a
@@ -87,6 +82,14 @@ interface for Farmhand. Hop over to that project to download.
 
 The bulk of the documentation is available in the
 [Wiki](https://github.com/b-ryan/farmhand/wiki).
+
+## Web Interface
+
+The [Farmhand UI](https://github.com/b-ryan/farmhand-ui) project provides a web
+interface for Farmhand. Hop over to that project to download. Here's a preview
+of what it looks like:
+
+![Screenshot](https://github.com/b-ryan/farmhand-ui/raw/master/preview.png)
 
 ## LICENSE
 
