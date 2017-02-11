@@ -3,4 +3,4 @@ machine:
     - redis
 test:
   override:
-    - lein with-profile +1.5:+1.6:+1.7:+1.8:+1.9 trampoline test
+    - lein with-profile +1.5:+1.6:+1.7:+1.8:+1.9 test
