@@ -1,5 +1,10 @@
 # Change Log
 
+## 0.4.0-SNAPSHOT
+
+- **Breaking** The interface of the `farmhand.config` namespace has been
+  completely redone.
+
 ## 0.3.0
 
 - **Breaking** `farmhand.registry/page` returns data in a slightly different

@@ -6,10 +6,10 @@
 (set! *warn-on-reflection* true)
 
 (defn create-pool
-  [{:keys [uri host port timeout password database]
+  [{:keys [uri host port timeout-ms password database]
     :or {host "localhost"
          port Protocol/DEFAULT_PORT
-         timeout Protocol/DEFAULT_TIMEOUT
+         timeout-ms Protocol/DEFAULT_TIMEOUT
          database Protocol/DEFAULT_DATABASE}}]
   {:jedis
    (if uri
@@ -17,7 +17,7 @@
      (JedisPool. (JedisPoolConfig.)
                  ^String host
                  ^Integer port
-                 ^Integer timeout
+                 ^Integer timeout-ms
                  ^String password
                  ^Integer database))})
 

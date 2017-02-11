@@ -2,7 +2,7 @@
   (:require [farmhand.config :as cfg]
             [farmhand.redis :as r :refer [with-jedis]]))
 
-(def pool (r/create-pool cfg/defaults))
+(def pool (r/create-pool {}))
 (def test-prefix "farmhand-test:")
 
 (defn cleanup-redis

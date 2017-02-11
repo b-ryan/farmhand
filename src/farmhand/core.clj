@@ -42,14 +42,14 @@
 
 (defn start-server
   ([] (start-server {}))
-  ([config-overrides]
-   (let [config (merge (config/load-config) config-overrides)
-         pool (or (:pool config) (redis/create-pool (:redis config)))
+  ([{:keys [num-workers queues redis pool]}]
+   (let [pool (or pool (redis/create-pool (config/redis redis)))
          shutdown (atom false)
 
-         thread-pool (Executors/newFixedThreadPool (:num-workers config))
-         run-worker #(work/main-loop shutdown pool (:queues config))
-         _ (doall (repeatedly (:num-workers config)
+         num-workers (config/num-workers num-workers)
+         thread-pool (Executors/newFixedThreadPool num-workers)
+         run-worker #(work/main-loop shutdown pool (config/queues queues))
+         _ (doall (repeatedly num-workers
                               #(.submit thread-pool ^Runnable run-worker)))
 
          server {:pool pool

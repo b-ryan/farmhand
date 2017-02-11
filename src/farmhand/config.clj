@@ -1,45 +1,56 @@
 (ns farmhand.config
   (:require [clojure.edn :as edn]
+            [clojure.string :as string]
             [clojure.java.io :as io]
             [farmhand.redis :as r]
             [farmhand.utils :as utils]))
 
-(def defaults {:redis {}
-               :num-workers 2
-               :queues [{:name "default"}]})
+(def ^:private all-env-vars (delay (System/getenv)))
 
-(defn- read-from-classpath
-  [config]
-  (merge config
-         (some-> (io/resource "farmhand/config.edn")
+(def classpath
+  (delay (some-> (io/resource "farmhand/config.edn")
                  (slurp)
                  (edn/read-string))))
 
-(def ^:private env-vars
-  [["FARMHAND_REDIS_URI"   {:path [:redis :uri]}]
-   ["FARMHAND_NUM_WORKERS" {:parse utils/parse-long :path [:num-workers]}]
-   ["FARMHAND_QUEUES_EDN"  {:parse edn/read-string :path [:queues]}]])
 
-(defn- getenv [e] (System/getenv e)) ;; Function exists so we can mock it in tests
 
-(defn- read-from-environment
-  [config]
-  (reduce (fn [config [env-var {:keys [parse path] :or {parse identity}}]]
-            (if-let [val (getenv env-var)]
-              (assoc-in config path (parse val))
-              config))
-          config
-          env-vars))
+(def ^:private parsers {:int utils/parse-long})
 
-(defn load-config
-  "High-level function which returns a fully-baked configuration.
+(defn- getenv
+  [[name & [parser]]]
+  (when-let [val (get @all-env-vars name)]
+    (let [parse (or (get parsers parser) parser identity)]
+      (parse val))))
 
-  The steps this function takes are:
+(defn merge*
+  ([env-def file-path]
+   (merge* env-def file-path nil))
+  ([env-def file-path default]
+   (or (get-in @classpath file-path)
+       (getenv env-def)
+       default)))
 
-  - Reads values from the classpath file and environment variables
-  - Merges those values with the default configuration
-  - Initializes a Redis pool"
-  []
-  (-> defaults
-      read-from-classpath
-      read-from-environment))
+(defn redis
+  [overrides]
+  (merge (utils/filter-map-vals
+           {:uri      (merge* ["FARMHAND_REDIS_URI"]           [:redis :uri])
+            :host     (merge* ["FARMHAND_REDIS_HOST"]          [:redis :host])
+            :port     (merge* ["FARMHAND_REDIS_PORT" :int]     [:redis :port])
+            :password (merge* ["FARMHAND_REDIS_PASSWORD"]      [:redis :password])
+            :database (merge* ["FARMHAND_REDIS_DATABASE" :int] [:redis :database])}
+           #(not (nil? %)))
+         overrides))
+
+(def ^:private default-num-workers 2)
+
+(defn num-workers
+  [override]
+  (or override
+      (merge* ["FARMHAND_NUM_WORKERS" :int] [:num-workers] default-num-workers)))
+
+(def ^:private default-queues [{:name "default"}])
+
+(defn queues
+  [override]
+  (or override
+      (merge* ["FARMHAND_QUEUES_EDN" edn/read-string] [:queues] default-queues)))
