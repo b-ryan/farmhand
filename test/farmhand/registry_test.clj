@@ -4,6 +4,7 @@
             [farmhand.queue :as q]
             [farmhand.redis :refer [with-transaction]]
             [farmhand.registry :as registry]
+            [farmhand.utils :refer [now-millis]]
             [farmhand.test-utils :as tu]))
 
 (defn work-fn [])
@@ -49,3 +50,11 @@
          {:items [{:expiration 3456 :job job2}]
           :prev-page 0
           :next-page 2})))
+
+(deftest cleanup-removes-older-jobs
+  (with-redefs [now-millis (constantly 4000)]
+    (registry/cleanup tu/pool [(q/completed-key)]))
+  (is (= (registry/page (q/completed-key) tu/pool {})
+         {:items [{:expiration 5678 :job job3}]
+          :prev-page nil
+          :next-page nil})))

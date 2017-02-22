@@ -1,7 +1,8 @@
 (ns farmhand.registry
-  (:require [farmhand.jobs :as jobs]
+  (:require [clojure.tools.logging :as log]
+            [farmhand.jobs :as jobs]
             [farmhand.redis :as redis :refer [with-jedis]]
-            [farmhand.utils :refer [now-millis]])
+            [farmhand.utils :refer [now-millis safe-while]])
   (:import (redis.clients.jedis Jedis RedisPipeline Tuple)))
 
 (set! *warn-on-reflection* true)
@@ -58,3 +59,17 @@
       {:items items
        :prev-page (when (> page 0) (dec page))
        :next-page (when (< page last-page) (inc page))})))
+
+(defn cleanup
+  [pool keys]
+  (let [now (now-millis)]
+    (with-jedis pool jedis
+      (doseq [^String key keys]
+        (.zremrangeByScore jedis key (double 0) (double now))))))
+
+(defn cleanup-loop
+  [shutdown pool keys]
+  (log/info "in registry cleanup loop" keys)
+  (safe-while (not @shutdown)
+    (cleanup pool keys))
+  (log/info "exiting registry cleanup loop"))
