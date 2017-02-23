@@ -70,7 +70,6 @@
       (jobs/update-props transaction job-id {:status "complete"
                                              :result result
                                              :completed-at (now-millis)})
-      (jobs/set-ttl transaction job-id)
       (registry/delete transaction (in-flight-key) job-id)
       (registry/add transaction (completed-key) job-id)
       (.exec transaction))))

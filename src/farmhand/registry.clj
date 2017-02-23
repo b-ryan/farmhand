@@ -7,7 +7,7 @@
 
 (set! *warn-on-reflection* true)
 
-(def ^:private ttl-ms (* 1000 60 60 24 30)) ;; 30 days
+(def ttl-ms (* 1000 jobs/ttl-secs))
 
 (defn expiration [] (+ (now-millis) ttl-ms))
 

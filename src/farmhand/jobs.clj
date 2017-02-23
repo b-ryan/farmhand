@@ -9,7 +9,7 @@
 
 (set! *warn-on-reflection* true)
 
-(def ^:private ttl-secs (* 60 60 24 21)) ;; 21 days
+(def ttl-secs (* 60 60 24 60)) ;; 60 days
 (def default-queue "default")
 
 (defn job-key ^String [job-id] (r/redis-key "job:" job-id))
@@ -52,7 +52,9 @@
 
 (defn save-new
   [^RedisPipeline pipeline {job-id :job-id :as job}]
-  (.hmset pipeline (job-key job-id) (prepare-to-save job)))
+  (let [key (job-key job-id)]
+    (.hmset pipeline key (prepare-to-save job))
+    (.expire pipeline key ttl-secs)))
 
 (defn update-props
   [^RedisPipeline pipeline job-id props]
@@ -82,7 +84,3 @@
   [job-id pool]
   (with-jedis pool jedis
     (fetch-body* job-id jedis)))
-
-(defn set-ttl
-  [^RedisPipeline pipeline job-id]
-  (.expire pipeline (job-key job-id) ttl-secs))
