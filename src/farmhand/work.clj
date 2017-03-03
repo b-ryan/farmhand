@@ -1,10 +1,11 @@
 (ns farmhand.work
-  (:require [clojure.tools.logging :as log]
+  (:require [clojure.core.async :as async]
+            [clojure.tools.logging :as log]
             [farmhand.dead-letters :as dead-letters]
             [farmhand.jobs :as jobs]
             [farmhand.queue :as queue]
             [farmhand.redis :refer [with-jedis]]
-            [farmhand.utils :refer [fatal? safe-while]]))
+            [farmhand.utils :refer [fatal? safe-loop]]))
 
 (def ^:private no-jobs-sleep-ms 50)
 
@@ -66,9 +67,11 @@
     (Thread/sleep no-jobs-sleep-ms)))
 
 (defn main-loop
-  [shutdown pool queue-defs]
+  [pool stop-chan queue-defs]
   (log/info "in main loop" queue-defs)
-  (safe-while (not @shutdown)
-    (-> (run-once pool queue-defs)
-        (sleep-if-no-jobs)))
+  (safe-loop
+    (async/alt!!
+      stop-chan :exit-loop
+      :default (-> (run-once pool queue-defs)
+                   (sleep-if-no-jobs))))
   (log/info "exiting main loop"))

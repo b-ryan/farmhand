@@ -1,8 +1,9 @@
 (ns farmhand.registry
-  (:require [clojure.tools.logging :as log]
+  (:require [clojure.core.async :as async]
+            [clojure.tools.logging :as log]
             [farmhand.jobs :as jobs]
-            [farmhand.redis :as redis :refer [with-jedis]]
-            [farmhand.utils :refer [now-millis safe-while]])
+            [farmhand.redis :as r :refer [with-jedis]]
+            [farmhand.utils :refer [now-millis safe-loop]])
   (:import (redis.clients.jedis Jedis RedisPipeline Tuple)))
 
 (set! *warn-on-reflection* true)
@@ -10,18 +11,24 @@
 (def ttl-ms (* 1000 jobs/ttl-secs))
 
 (defn expiration [] (+ (now-millis) ttl-ms))
+(defn all-registries-key ^String [] (r/redis-key "registries"))
 
 (defn add
   [^RedisPipeline pipeline ^String key ^String job-id]
+  (.sadd pipeline (all-registries-key) (r/str-arr key))
   (.zadd pipeline key (double (expiration)) job-id))
 
 (defn delete
   [^RedisPipeline pipeline ^String key ^String job-id]
-  (.zrem pipeline key (redis/str-arr job-id)))
+  (.zrem pipeline key (r/str-arr job-id)))
 
 (defn- num-items
   [^Jedis jedis ^String key]
   (.zcard jedis key))
+
+(defn- all-registries
+  [^Jedis jedis]
+  (.smembers jedis (all-registries-key)))
 
 (def ^:private default-size 25)
 
@@ -61,15 +68,21 @@
        :next-page (when (< page last-page) (inc page))})))
 
 (defn cleanup
-  [pool keys]
+  [pool]
   (let [now (now-millis)]
     (with-jedis pool jedis
-      (doseq [^String key keys]
-        (.zremrangeByScore jedis key (double 0) (double now))))))
+      (doseq [^String key (all-registries jedis)]
+        (let [num-removed (.zremrangeByScore jedis key (double 0) (double now))]
+          (when (> num-removed 0)
+            (log/debugf "Removed %d items from %s" num-removed key)))))))
+
+(def ^:private loop-sleep-ms (* 1000 60))
 
 (defn cleanup-loop
-  [shutdown pool keys]
-  (log/info "in registry cleanup loop" keys)
-  (safe-while (not @shutdown)
-    (cleanup pool keys))
+  [pool stop-chan]
+  (log/info "in registry cleanup loop")
+  (safe-loop
+    (async/alt!!
+      stop-chan :exit-loop
+      (async/timeout loop-sleep-ms) (cleanup pool)))
   (log/info "exiting registry cleanup loop"))

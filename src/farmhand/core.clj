@@ -1,8 +1,10 @@
 (ns farmhand.core
-  (:require [farmhand.config :as config]
+  (:require [clojure.core.async :as async]
+            [farmhand.config :as config]
             [farmhand.jobs :as jobs]
             [farmhand.queue :as queue]
             [farmhand.redis :as redis :refer [with-jedis]]
+            [farmhand.registry :as registry]
             [farmhand.work :as work])
   (:import (java.util.concurrent Executors TimeUnit))
   (:gen-class))
@@ -44,17 +46,21 @@
   ([] (start-server {}))
   ([{:keys [num-workers queues redis pool]}]
    (let [pool (or pool (redis/create-pool (config/redis redis)))
-         shutdown (atom false)
+         shutdown-chan (async/chan)
 
          num-workers (config/num-workers num-workers)
          thread-pool (Executors/newFixedThreadPool num-workers)
-         run-worker #(work/main-loop shutdown pool (config/queues queues))
+         run-worker #(work/main-loop pool shutdown-chan (config/queues queues))
          _ (doall (repeatedly num-workers
                               #(.submit thread-pool ^Runnable run-worker)))
 
+
+         cleanup-thread (async/thread (registry/cleanup-loop pool shutdown-chan))
+
          server {:pool pool
-                 :shutdown shutdown
-                 :thread-pool thread-pool}]
+                 :shutdown-chan shutdown-chan
+                 :thread-pool thread-pool
+                 :cleanup-thread cleanup-thread}]
      (dosync
        (reset! pool* pool)
        (reset! server* server))
@@ -67,10 +73,10 @@
   By default this waits up to 2 minutes for the running jobs to complete. This
   value can be overriden with the :timeout-ms option."
   ([] (stop-server @server*))
-  ([{:keys [pool shutdown thread-pool]} & {:keys [timeout-ms]
-                                           :or {timeout-ms (* 1000 60 2)}}]
+  ([{:keys [pool shutdown-chan thread-pool cleanup-thread]}
+    & {:keys [timeout-ms] :or {timeout-ms (* 1000 60 2)}}]
    (do
-     (reset! shutdown true)
+     (async/close! shutdown-chan)
      (.shutdown thread-pool)
      (.awaitTermination thread-pool timeout-ms TimeUnit/MILLISECONDS)
      (redis/close-pool pool))))
@@ -84,12 +90,12 @@
 (comment
 
   (do
-    (start-server {:num-workers 4})
+    (start-server)
     (defn slow-job [& args] (Thread/sleep 10000) :slow-result)
     (defn failing-job [& args] (throw (ex-info "foo" {:a :b}))))
 
   (enqueue {:fn-var #'slow-job :args ["i am slow"]} @pool*)
   (enqueue {:fn-var #'failing-job :args ["fail"]} @pool*)
 
-  (stop-server @server*)
+  (stop-server)
   )

@@ -53,7 +53,7 @@
 
 (deftest cleanup-removes-older-jobs
   (with-redefs [now-millis (constantly 4000)]
-    (registry/cleanup tu/pool [(q/completed-key)]))
+    (registry/cleanup tu/pool))
   (is (= (registry/page (q/completed-key) tu/pool {})
          {:items [{:expiration 5678 :job job3}]
           :prev-page nil

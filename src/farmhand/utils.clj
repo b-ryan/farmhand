@@ -40,25 +40,40 @@
 (defn catchable?
   "Predicate that indicates whether a given instance of Throwable is catchable.
 
-  A Throwable is considered catchable if is an instance of either Exception or
-  AssertionError"
+  This function is mainly aimed at top-level loops. For example it is used in
+  the safe-loop macro to determine whether to continue executing the body of
+  the loop when a Throwable is caught."
   [e]
-  (or (instance? Exception e)
-      (instance? AssertionError e)))
+  #_(or (instance? Exception e)
+      (instance? AssertionError e))
+
+  (cond
+    (instance? InterruptedException e) false
+    (instance? AssertionError e) true
+    (instance? Exception e) true
+    :else false)
+  )
+
 
 (def fatal? "Opposite of catchable?" (complement catchable?))
 
-(defmacro safe-while
-  [test-expr & body]
-  `(while ~test-expr
-     (try
-       ~@body
-       (catch Throwable e#
-         (when (fatal? e#)
-           (log/error e# "exiting safe-while due to fatal error")
-           (throw e#))
-         (log/error e# "unexpected exception, going to pause execution")
-         (Thread/sleep (* 1000 2))))))
+(defn pause-for-exception
+  [e]
+  (log/error e "unexpected exception, going to pause execution")
+  (Thread/sleep (* 1000 2)))
+
+(defmacro safe-loop
+  [& body]
+  `(loop [status# nil]
+     (when-not (= status# :exit-loop)
+       (recur
+         (try
+           ~@body
+           (catch Throwable e#
+             (when (fatal? e#)
+               (log/error e# "Rethrowing fatal error in safe-loop")
+               (throw e#))
+             (pause-for-exception e#)))))))
 
 (defn parse-long
   [x]

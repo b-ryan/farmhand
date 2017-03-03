@@ -4,6 +4,7 @@
   :deploy-repositories [["releases" :clojars]
                         ["snapshots" :clojars]]
   :dependencies [[org.clojure/clojure "1.5.1"]
+                 [org.clojure/core.async "0.3.441" :exclusions [org.clojure/clojure]]
                  [org.clojure/tools.logging "0.3.1"]
                  [redis.clients/jedis "2.9.0"]]
   :main ^:skip-aot farmhand.core
