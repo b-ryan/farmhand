@@ -75,8 +75,11 @@ you the most common usage.
   [script](https://github.com/b-ryan/farmhand/blob/master/resources/farmhand/dequeue.lua)
   which Redis guarantees to be
   [atomic](https://redis.io/commands/eval#atomicity-of-scripts).
-- Supports reading from multiple queues. See the [Queues
-  documentation](https://github.com/b-ryan/farmhand/wiki/Queues) for details.
+- Supports reading from multiple queues. See the
+  [Queues](https://github.com/b-ryan/farmhand/wiki/Queues) documentation for
+  details.
+- Job processing is fully customizable through middleware support. See the
+  [Middleware](https://github.com/b-ryan/farmhand/wiki/Middleware) docs.
 
 ## Documentation
 
