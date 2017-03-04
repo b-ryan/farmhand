@@ -45,7 +45,6 @@
   the loop when a Throwable is caught."
   [e]
   (cond
-    (instance? InterruptedException e) false
     (instance? AssertionError e) true
     (instance? Exception e) true
     :else false))

@@ -47,8 +47,7 @@
       (catch Throwable e
         (when (fatal? e) (throw e))
         {:status :failure
-         :result {:reason :exception
-                  :exception e}}))))
+         :result {:reason :exception :exception e}}))))
 
 (defn wrap-fetch-job
   [handler]
@@ -92,10 +91,10 @@
                          wrap-debug))
 
 (defn run-once
-  [pool queue-defs]
+  [pool queue-defs handler]
   (if-let [job-id (->> (queue/queue-order queue-defs)
                        (queue/dequeue pool))]
-    (default-handler {:job-id job-id :pool pool})
+    (handler {:job-id job-id :pool pool})
     ::no-jobs-available))
 
 (defn- sleep-if-no-jobs
@@ -107,11 +106,11 @@
     (Thread/sleep no-jobs-sleep-ms)))
 
 (defn main-loop
-  [pool stop-chan queue-defs]
+  [stop-chan pool queue-defs handler]
   (log/info "in main loop" queue-defs)
   (safe-loop
     (async/alt!!
       stop-chan :exit-loop
-      :default (-> (run-once pool queue-defs)
+      :default (-> (run-once pool queue-defs handler)
                    (sleep-if-no-jobs))))
   (log/info "exiting main loop"))

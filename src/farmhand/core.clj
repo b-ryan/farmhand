@@ -44,16 +44,17 @@
 
 (defn start-server
   ([] (start-server {}))
-  ([{:keys [num-workers queues redis pool]}]
-   (let [pool (or pool (redis/create-pool (config/redis redis)))
-         shutdown-chan (async/chan)
+  ([{:keys [num-workers queues redis pool handler]}]
+   (let [queues (config/queues queues)
+         pool (or pool (redis/create-pool (config/redis redis)))
+         handler (or handler work/default-handler)
 
+         shutdown-chan (async/chan)
          num-workers (config/num-workers num-workers)
          thread-pool (Executors/newFixedThreadPool num-workers)
-         run-worker #(work/main-loop pool shutdown-chan (config/queues queues))
+         run-worker #(work/main-loop shutdown-chan pool queues handler)
          _ (doall (repeatedly num-workers
                               #(.submit thread-pool ^Runnable run-worker)))
-
 
          cleanup-thread (async/thread (registry/cleanup-loop pool shutdown-chan))
 
