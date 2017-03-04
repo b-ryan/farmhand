@@ -1,5 +1,27 @@
 # Change Log
 
+## Unreleased
+
+DEPENDENCY CHANGES
+
+- Farmhand now has Clojure core.async as a project dependency
+
+FEATURES
+
+- In addition to the worker threads, each farmhand server will now launch an
+  additional thread which is responsible for cleaning data out of Redis. At
+  this time Farmhand keeps all jobs and registry data for 60 days before it is
+  cleaned out.
+
+BREAKING
+
+- Expiration of data now behaves differently. Previously, only successful jobs
+  were given a TTL in Redis. Additionally all registry data was never removed.
+  Now job and registry data will be expired 60 days from the time it is created
+  (note that re-queueing does not affect the TTL).
+- Some internal functions, Eg. in `utils` and `work` namespaces have been
+  removed or changed.
+
 ## 0.4.0
 
 - **Breaking** The interface of the `farmhand.config` namespace has been

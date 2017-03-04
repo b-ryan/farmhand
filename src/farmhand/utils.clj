@@ -44,15 +44,11 @@
   the safe-loop macro to determine whether to continue executing the body of
   the loop when a Throwable is caught."
   [e]
-  #_(or (instance? Exception e)
-      (instance? AssertionError e))
-
   (cond
     (instance? InterruptedException e) false
     (instance? AssertionError e) true
     (instance? Exception e) true
-    :else false)
-  )
+    :else false))
 
 
 (def fatal? "Opposite of catchable?" (complement catchable?))
