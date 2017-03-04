@@ -31,31 +31,71 @@
   [job-id pool result]
   (queue/complete job-id pool :result result))
 
-(defn- process
-  [job-id pool]
-  (try
+(defn handler
+  [{{fn-var :fn-var args :args} :job}]
+  (if fn-var
+    {:status :success
+     :result (apply fn-var args)}
+    {:status :failure
+     :result {:reason :no-implementation}}))
+
+(defn wrap-exception-handler
+  [handler]
+  (fn exception-handler [request]
+    (try
+      (handler request)
+      (catch Throwable e
+        (when (fatal? e) (throw e))
+        {:status :failure
+         :result {:reason :exception
+                  :exception e}}))))
+
+(defn wrap-fetch-job
+  [handler]
+  (fn fetch-job [{:keys [job-id pool] :as request}]
+    (handler (assoc request
+                    :job (-> job-id
+                             (jobs/fetch-body pool)
+                             jobs/assoc-fn-var)))))
+
+(defn wrap-mark-in-progress
+  [handler]
+  (fn mark-in-progress [{:keys [job-id pool] :as request}]
     (with-jedis pool jedis
       (let [pipeline (.pipelined jedis)]
         (jobs/update-props pipeline job-id {:status "processing"})
         (.sync pipeline)))
-    (let [{:keys [fn-var args] :as job} (-> job-id
-                                            (jobs/fetch-body pool)
-                                            jobs/assoc-fn-var)]
-      (if fn-var
-        [:success (apply fn-var args)]
-        [:failure {:reason :no-implementation}]))
-    (catch Throwable e
-      (when (fatal? e) (throw e))
-      [:failure {:reason :exception :exception e}])))
+    (handler request)))
+
+(defn wrap-handle-response
+  [handler]
+  (fn handle-response [{:keys [job-id pool] :as request}]
+    (let [{:keys [status result] :as response} (handler request)]
+      (case status
+        :failure (handle-failure job-id pool result)
+        :success (handle-success job-id pool result))
+      response)))
+
+(defn wrap-debug
+  [handler]
+  (fn debug [{:keys [job-id] :as request}]
+    (log/debugf "received job %s" job-id)
+    (let [response (handler request)]
+      (log/debugf "completed job %s" job-id)
+      response)))
+
+(def default-handler (-> handler
+                         wrap-exception-handler
+                         wrap-fetch-job
+                         wrap-mark-in-progress
+                         wrap-handle-response
+                         wrap-debug))
 
 (defn run-once
   [pool queue-defs]
   (if-let [job-id (->> (queue/queue-order queue-defs)
                        (queue/dequeue pool))]
-    (let [[status result] (process job-id pool)]
-      (case status
-        :failure (handle-failure job-id pool result)
-        :success (handle-success job-id pool result)))
+    (default-handler {:job-id job-id :pool pool})
     ::no-jobs-available))
 
 (defn- sleep-if-no-jobs
