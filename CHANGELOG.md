@@ -1,6 +1,6 @@
 # Change Log
 
-## 0.6.0 (Unreleased)
+## 0.6.0
 
 FEATURES
 
