@@ -1,6 +1,7 @@
 (ns farmhand.core
   (:require [clojure.core.async :as async]
             [farmhand.config :as config]
+            [farmhand.handler :as handler]
             [farmhand.jobs :as jobs]
             [farmhand.queue :as queue]
             [farmhand.redis :as redis :refer [with-jedis]]
@@ -47,7 +48,7 @@
   ([{:keys [num-workers queues redis pool handler]}]
    (let [queues (config/queues queues)
          pool (or pool (redis/create-pool (config/redis redis)))
-         handler (or handler work/default-handler)
+         handler (or handler handler/default-handler)
 
          shutdown-chan (async/chan)
          num-workers (config/num-workers num-workers)
@@ -87,11 +88,10 @@
   (start-server))
 
 
-
 (comment
 
   (do
-    (start-server)
+    (start-server {:handler (handler/wrap-debug handler/default-handler)})
     (defn slow-job [& args] (Thread/sleep 10000) :slow-result)
     (defn failing-job [& args] (throw (ex-info "foo" {:a :b}))))
 
