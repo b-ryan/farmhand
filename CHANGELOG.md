@@ -1,5 +1,12 @@
 # Change Log
 
+## 0.6.0 (Unreleased)
+
+FEATURES
+
+- You can now use a custom handler for processing jobs. The job processing
+  functionality has been rewritten as a series of middleware functions.
+
 ## 0.5.0
 
 DEPENDENCY CHANGES
