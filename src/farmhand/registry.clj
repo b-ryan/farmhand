@@ -6,8 +6,6 @@
             [farmhand.utils :refer [now-millis safe-loop]])
   (:import (redis.clients.jedis Jedis RedisPipeline Tuple)))
 
-(set! *warn-on-reflection* true)
-
 (def ttl-ms (* 1000 jobs/ttl-secs))
 
 (defn expiration [] (+ (now-millis) ttl-ms))

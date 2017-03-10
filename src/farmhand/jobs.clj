@@ -7,8 +7,6 @@
            (java.util UUID)
            (redis.clients.jedis Jedis RedisPipeline)))
 
-(set! *warn-on-reflection* true)
-
 (def ttl-secs (* 60 60 24 60)) ;; 60 days
 (def default-queue "default")
 

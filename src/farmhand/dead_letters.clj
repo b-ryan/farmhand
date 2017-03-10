@@ -5,17 +5,15 @@
             [farmhand.registry :as registry]
             [farmhand.utils :refer [now-millis]]))
 
-(set! *warn-on-reflection* true)
-
 (defn dead-letter-key ^String [] (r/redis-key "dead"))
 
 (defn requeue
   [job-id pool]
   (with-jedis pool jedis
-    (let [job (jobs/fetch-body job-id pool)
+    (let [{:keys [queue]} (jobs/fetch-body* job-id jedis)
           transaction (.multi jedis)]
       (registry/add transaction (dead-letter-key) job-id)
-      (queue/push transaction job)
+      (queue/push transaction job-id queue)
       (.exec transaction))))
 
 (defn fail

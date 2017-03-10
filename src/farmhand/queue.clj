@@ -6,15 +6,13 @@
             [farmhand.utils :refer [now-millis]])
   (:import (redis.clients.jedis Transaction)))
 
-(set! *warn-on-reflection* true)
-
 (defn all-queues-key ^String [] (r/redis-key "queues"))
 (defn in-flight-key ^String [] (r/redis-key "inflight"))
 (defn completed-key ^String [] (r/redis-key "completed"))
 (defn queue-key ^String [queue-name] (r/redis-key "queue:" queue-name))
 
 (defn push
-  [^Transaction transaction {:keys [queue job-id] :as job}]
+  [^Transaction transaction job-id queue]
   (let [queue-key (queue-key queue)]
     (.sadd transaction (all-queues-key) (r/str-arr queue))
     (.lpush transaction queue-key (r/str-arr job-id))

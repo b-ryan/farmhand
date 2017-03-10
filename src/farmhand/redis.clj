@@ -3,8 +3,6 @@
            (redis.clients.jedis Jedis JedisPool JedisPoolConfig Pipeline
                                 Protocol RedisPipeline Transaction)))
 
-(set! *warn-on-reflection* true)
-
 (defn create-pool
   [{:keys [uri host port timeout-ms password database]
     :or {host "localhost"

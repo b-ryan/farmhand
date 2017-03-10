@@ -66,10 +66,11 @@
 (defn wrap-handle-response
   [handler]
   (fn handle-response [{:keys [job-id pool] :as request}]
-    (let [{:keys [status result] :as response} (handler request)]
-      (case status
-        :failure (handle-failure job-id pool result)
-        :success (handle-success job-id pool result))
+    (let [{:keys [status result handled?] :as response} (handler request)]
+      (when-not handled?
+        (case status
+          :failure (handle-failure job-id pool result)
+          :success (handle-success job-id pool result)))
       response)))
 
 (defn wrap-debug
@@ -80,8 +81,9 @@
       (log/debugf "completed job %s" job-id)
       response)))
 
-(def default-handler (-> handler
-                         wrap-exception-handler
-                         wrap-fetch-job
-                         wrap-mark-in-progress
-                         wrap-handle-response))
+(def pre-completion-handler (-> handler
+                                wrap-exception-handler
+                                wrap-fetch-job
+                                wrap-mark-in-progress))
+
+(def default-handler (wrap-handle-response pre-completion-handler))

@@ -7,6 +7,7 @@
                  [org.clojure/core.async "0.3.441" :exclusions [org.clojure/clojure]]
                  [org.clojure/tools.logging "0.3.1"]
                  [redis.clients/jedis "2.9.0"]]
+  :global-vars {*warn-on-reflection* true}
   :main ^:skip-aot farmhand.core
   :target-path "target/%s"
   :jvm-opts ["-Duser.timezone=GMT"]

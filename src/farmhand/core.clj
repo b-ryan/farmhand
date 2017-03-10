@@ -4,8 +4,9 @@
             [farmhand.handler :as handler]
             [farmhand.jobs :as jobs]
             [farmhand.queue :as queue]
-            [farmhand.redis :as redis :refer [with-jedis]]
+            [farmhand.redis :as redis :refer [with-jedis with-transaction]]
             [farmhand.registry :as registry]
+            [farmhand.scheduled :as scheduled]
             [farmhand.work :as work])
   (:import (java.util.concurrent Executors TimeUnit))
   (:gen-class))
@@ -35,13 +36,11 @@
   ([job]
    (enqueue job @pool*))
   ([job pool]
-   (with-jedis pool jedis
-     (let [job (jobs/normalize job)
-           transaction (.multi jedis)]
+   (let [{:keys [job-id queue] :as job} (jobs/normalize job)]
+     (with-transaction pool transaction
        (jobs/save-new transaction job)
-       (queue/push transaction job)
-       (.exec transaction)
-       (:job-id job)))))
+       (queue/push transaction job-id queue))
+     job-id)))
 
 (defn start-server
   ([] (start-server {}))
@@ -58,6 +57,7 @@
                               #(.submit thread-pool ^Runnable run-worker)))
 
          cleanup-thread (async/thread (registry/cleanup-loop pool shutdown-chan))
+         schedule-thread (async/thread (scheduled/schedule-loop pool shutdown-chan))
 
          server {:pool pool
                  :shutdown-chan shutdown-chan
