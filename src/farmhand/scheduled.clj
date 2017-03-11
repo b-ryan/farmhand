@@ -45,11 +45,12 @@
   ;; https://github.com/mperham/sidekiq/blob/master/lib/sidekiq/scheduled.rb
   (int (* (rand 15) 1000)))
 
-(defn schedule-loop
+(defn schedule-thread
   [pool stop-chan]
-  (log/info "In schedule loop")
-  (safe-loop
-    (async/alt!!
-      stop-chan :exit-loop
-      (async/timeout (sleep-time)) (pull-and-enqueue pool)))
-  (log/info "Exiting schedule loop"))
+  (async/thread
+    (log/info "in schedule thread")
+    (safe-loop
+      (async/alt!!
+        stop-chan :exit-loop
+        (async/timeout (sleep-time)) (pull-and-enqueue pool)))
+    (log/info "exiting schedule thread")))

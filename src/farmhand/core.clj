@@ -8,7 +8,6 @@
             [farmhand.registry :as registry]
             [farmhand.scheduled :as scheduled]
             [farmhand.work :as work])
-  (:import (java.util.concurrent Executors TimeUnit))
   (:gen-class))
 
 (defonce
@@ -43,45 +42,32 @@
      job-id)))
 
 (defn start-server
-  ([] (start-server {}))
-  ([{:keys [num-workers queues redis pool handler]}]
-   (let [queues (config/queues queues)
-         pool (or pool (redis/create-pool (config/redis redis)))
-         handler (or handler handler/default-handler)
-
-         shutdown-chan (async/chan)
-         num-workers (config/num-workers num-workers)
-         thread-pool (Executors/newFixedThreadPool num-workers)
-         run-worker #(work/main-loop shutdown-chan pool queues handler)
-         _ (doall (repeatedly num-workers
-                              #(.submit thread-pool ^Runnable run-worker)))
-
-         cleanup-thread (async/thread (registry/cleanup-loop pool shutdown-chan))
-         schedule-thread (async/thread (scheduled/schedule-loop pool shutdown-chan))
-
-         server {:pool pool
-                 :shutdown-chan shutdown-chan
-                 :thread-pool thread-pool
-                 :cleanup-thread cleanup-thread}]
-     (dosync
-       (reset! pool* pool)
-       (reset! server* server))
-     server)))
+  [& [{:keys [num-workers queues redis pool handler]}]]
+  (let [queues (config/queues queues)
+        pool (or pool (redis/create-pool (config/redis redis)))
+        handler (or handler handler/default-handler)
+        stop-chan (async/chan)
+        threads (concat
+                  (for [_ (range (config/num-workers num-workers))]
+                    (work/work-thread pool stop-chan queues handler))
+                  [(registry/cleanup-thread pool stop-chan)
+                   (scheduled/schedule-thread pool stop-chan)])
+        server {:pool pool
+                :stop-chan stop-chan
+                :threads (doall threads)}]
+    (dosync
+      (reset! pool* pool)
+      (reset! server* server))
+    server))
 
 (defn stop-server
   "Stops a running Farmhand server. If no server is given, this function will
-  stop the server in the server* atom.
-
-  By default this waits up to 2 minutes for the running jobs to complete. This
-  value can be overriden with the :timeout-ms option."
+  stop the server in the server* atom."
   ([] (stop-server @server*))
-  ([{:keys [pool shutdown-chan thread-pool cleanup-thread]}
-    & {:keys [timeout-ms] :or {timeout-ms (* 1000 60 2)}}]
-   (do
-     (async/close! shutdown-chan)
-     (.shutdown thread-pool)
-     (.awaitTermination thread-pool timeout-ms TimeUnit/MILLISECONDS)
-     (redis/close-pool pool))))
+  ([{:keys [pool stop-chan threads]}]
+   (async/close! stop-chan)
+   (async/<!! (async/merge threads))
+   (redis/close-pool pool)))
 
 (defn -main
   [& _]

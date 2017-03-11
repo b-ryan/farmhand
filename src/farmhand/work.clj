@@ -21,12 +21,13 @@
   (when (= result ::no-jobs-available)
     (Thread/sleep no-jobs-sleep-ms)))
 
-(defn main-loop
-  [stop-chan pool queue-defs handler]
-  (log/info "in main loop" queue-defs)
-  (safe-loop
-    (async/alt!!
-      stop-chan :exit-loop
-      :default (-> (run-once pool queue-defs handler)
-                   (sleep-if-no-jobs))))
-  (log/info "exiting main loop"))
+(defn work-thread
+  [pool stop-chan queue-defs handler]
+  (async/thread
+    (log/info "in main loop" queue-defs)
+    (safe-loop
+      (async/alt!!
+        stop-chan :exit-loop
+        :default (-> (run-once pool queue-defs handler)
+                     (sleep-if-no-jobs))))
+    (log/info "exiting main loop")))

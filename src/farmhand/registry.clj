@@ -76,11 +76,12 @@
 
 (def ^:private loop-sleep-ms (* 1000 60))
 
-(defn cleanup-loop
+(defn cleanup-thread
   [pool stop-chan]
-  (log/info "in registry cleanup loop")
-  (safe-loop
-    (async/alt!!
-      stop-chan :exit-loop
-      (async/timeout loop-sleep-ms) (cleanup pool)))
-  (log/info "exiting registry cleanup loop"))
+  (async/thread
+    (log/info "in registry cleanup thread")
+    (safe-loop
+      (async/alt!!
+        stop-chan :exit-loop
+        (async/timeout loop-sleep-ms) (cleanup pool)))
+    (log/info "exiting registry cleanup thread")))
