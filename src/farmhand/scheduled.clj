@@ -10,12 +10,41 @@
 (defn scheduled-key ^String [] (r/redis-key "scheduled"))
 
 (defn run-at
-  "at should be a millisecond timestamp"
-  [job at pool]
+  "Schedules a job to be run at a specified time. Farmhand will queue the job
+  roughly when it is scheduled, but currently does not guarantee accuracy.
+
+  The 'at' argument should be a timestamp specified in milliseconds.
+
+  Returns the job's ID."
+  [pool job at]
   (let [{job-id :job-id :as normalized} (jobs/normalize job)]
     (with-transaction pool transaction
       (jobs/save-new transaction normalized)
-      (.zadd transaction (scheduled-key) (double at) ^String job-id))))
+      (.zadd transaction (scheduled-key) (double at) ^String job-id))
+    job-id))
+
+(def ^:private multipliers {:milliseconds 1
+                            :seconds 1000
+                            :minutes (* 1000 60)
+                            :hours (* 1000 60 60)
+                            :days (* 1000 60 60 24)})
+
+(defn run-in
+  "Schedules a job to be run at some time from now. Like run-at, the job will
+  be queued roughly around the requested time.
+
+  The 'unit' argument can be one of :milliseconds, :seconds, :minutes, :hours,
+  or :days and specifies the unit of 'in'. For example, schedule a job in 2
+  minutes with
+
+    (run-in pool job 2 :minutes)
+
+  Returns the job's ID."
+  [pool job in unit]
+  {:pre [(get multipliers unit)]}
+  (let [multiplier (get multipliers unit)
+        at (+ (System/currentTimeMillis) (* in multiplier))]
+    (run-at pool job at)))
 
 (defn- fetch-ready-id
   "Fetches the next job-id that is ready to be enqueued (or nil if there is
@@ -39,11 +68,7 @@
             (recur))
           (.unwatch jedis))))))
 
-(defn- sleep-time
-  []
-  ;; TODO mimick sidekiq
-  ;; https://github.com/mperham/sidekiq/blob/master/lib/sidekiq/scheduled.rb
-  (int (* (rand 15) 1000)))
+(defn- sleep-time [] (int (* (rand 15) 1000)))
 
 (defn schedule-thread
   [pool stop-chan]

@@ -84,5 +84,7 @@
   (enqueue {:fn-var #'slow-job :args ["i am slow"]} @pool*)
   (enqueue {:fn-var #'failing-job :args ["fail"]} @pool*)
 
+  (scheduled/run-in @pool* {:fn-var #'slow-job :args ["i am slow"]} 1 :minutes)
+
   (stop-server)
   )
