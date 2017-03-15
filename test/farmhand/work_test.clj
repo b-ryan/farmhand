@@ -20,7 +20,7 @@
 (defn work-fn [& args] (reset! last-call-args args))
 
 (deftest queue-and-run
-  (let [job-id (enqueue {:fn-var #'work-fn :args [:a 1 3.4 "abc"]} tu/pool)]
+  (let [job-id (enqueue tu/pool {:fn-var #'work-fn :args [:a 1 3.4 "abc"]})]
     (testing "running the main work function will pull and execute the job"
       (work/run-once tu/pool [{:name "default"}] default-handler)
       (is (= @last-call-args [:a 1 3.4 "abc"])))
@@ -33,7 +33,7 @@
 (defn fail-fn [] (throw (Exception. "baz")))
 
 (deftest dead-letters
-  (let [job-id (enqueue {:fn-var #'fail-fn :args []} tu/pool)]
+  (let [job-id (enqueue tu/pool {:fn-var #'fail-fn :args []})]
     (work/run-once tu/pool [{:name "default"}] default-handler)
     (testing "failed job has been added to the dead letter registry"
       (is (=
@@ -42,6 +42,6 @@
            #{job-id})))))
 
 (deftest requeuing
-  (let [job-id (enqueue {:fn-var #'fail-fn :args []} tu/pool)]
+  (let [job-id (enqueue tu/pool {:fn-var #'fail-fn :args []})]
     (work/run-once tu/pool [{:name "default"}] default-handler)
     (dead-letters/requeue job-id tu/pool)))

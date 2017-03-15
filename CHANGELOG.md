@@ -1,5 +1,18 @@
 # Change Log
 
+## 0.7.0 (Unreleased)
+
+FEATURES
+
+- Job scheduling.
+
+BREAKING
+
+- Argument order to `farmhand.core/enqueue` has changed. The `pool` is now the
+  first argument. But you can continue to omit this argument to have the
+  default pool be used. This is in an effort to make the argument order
+  consistent across the codebase.
+
 ## 0.6.0
 
 FEATURES
@@ -31,18 +44,20 @@ BREAKING
 
 ## 0.4.0
 
-- **Breaking** The interface of the `farmhand.config` namespace has been
-  completely redone.
+BREAKING
+
+- The interface of the `farmhand.config` namespace has been completely redone.
 
 ## 0.3.0
 
-- **Breaking** `farmhand.registry/page` returns data in a slightly different
-  format. See commit 6d1718f38808a85badd7da02fe62158d5c3dfc80 for details.
-- Threading is now implemented using
-  `java.util.concurrent.Executors/newFixedThreadPool` instead of using Clojure
-  `future`s.
+BREAKING
+
+- `farmhand.registry/page` returns data in a slightly different format. See
+  commit 6d1718f38808a85badd7da02fe62158d5c3dfc80 for details.
 
 ## 0.2.0
+
+FEATURES
 
 - `core` namespace now contains `server*` and `pool*` atoms that contain the
   most recently created Farmhand server and pool.

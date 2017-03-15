@@ -33,8 +33,8 @@
   The second argument is a Farmhand pool. If a pool is not given, the value in
   the pool* atom will be used."
   ([job]
-   (enqueue job @pool*))
-  ([job pool]
+   (enqueue @pool* job))
+  ([pool job]
    (let [{:keys [job-id queue] :as job} (jobs/normalize job)]
      (with-transaction pool transaction
        (jobs/save-new transaction job)
@@ -81,8 +81,8 @@
     (defn slow-job [& args] (Thread/sleep 10000) :slow-result)
     (defn failing-job [& args] (throw (ex-info "foo" {:a :b}))))
 
-  (enqueue {:fn-var #'slow-job :args ["i am slow"]} @pool*)
-  (enqueue {:fn-var #'failing-job :args ["fail"]} @pool*)
+  (enqueue @pool* {:fn-var #'slow-job :args ["i am slow"]})
+  (enqueue @pool* {:fn-var #'failing-job :args ["fail"]})
 
   (scheduled/run-in @pool* {:fn-var #'slow-job :args ["i am slow"]} 1 :minutes)
 

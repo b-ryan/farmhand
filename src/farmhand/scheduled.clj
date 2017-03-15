@@ -43,7 +43,7 @@
   [pool job in unit]
   {:pre [(get multipliers unit)]}
   (let [multiplier (get multipliers unit)
-        at (+ (System/currentTimeMillis) (* in multiplier))]
+        at (+ (now-millis) (* in multiplier))]
     (run-at pool job at)))
 
 (defn- fetch-ready-id
