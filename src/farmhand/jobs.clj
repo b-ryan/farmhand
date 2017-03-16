@@ -21,7 +21,6 @@
 
   Accepts:
     :queue
-    :type
     :args
     :fn-var
 
@@ -29,10 +28,6 @@
     :job-id
     :created-at
     :fn-path
-
-  Encodes:
-    :args
-
   "
   [{:keys [queue fn-var] :as job}]
   (-> job

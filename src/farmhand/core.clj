@@ -30,8 +30,8 @@
 (defn enqueue
   "Pushes a job onto the queue. Returns the job's ID.
 
-  The second argument is a Farmhand pool. If a pool is not given, the value in
-  the pool* atom will be used."
+  The (optional) first argument is a Farmhand pool. If a pool is not given, the
+  value in the pool* atom will be used."
   ([job]
    (enqueue @pool* job))
   ([pool job]
@@ -40,6 +40,40 @@
        (jobs/save-new transaction job)
        (queue/push transaction job-id queue))
      job-id)))
+
+(defn run-at
+  "Schedules a job to be run at a specified time. Farmhand will queue the job
+  roughly when it is scheduled, but currently does not guarantee accuracy.
+
+  The (optional) first argument is a Farmhand pool. If a pool is not given, the
+  value in the pool* atom will be used.
+
+  The 'at' argument should be a timestamp specified in milliseconds.
+
+  Returns the job's ID."
+  ([job at]
+   (scheduled/run-at @pool* job at))
+  ([pool job at]
+   (scheduled/run-at pool job at)))
+
+(defn run-in
+  "Schedules a job to be run at some time from now. Like run-at, the job will
+  be queued roughly around the requested time.
+
+  The (optional) first argument is a Farmhand pool. If a pool is not given, the
+  value in the pool* atom will be used.
+
+  The 'unit' argument can be one of :milliseconds, :seconds, :minutes, :hours,
+  or :days and specifies the unit of 'in'. For example, schedule a job in 2
+  minutes with
+
+    (run-in pool job 2 :minutes)
+
+  Returns the job's ID."
+  ([job in unit]
+   (scheduled/run-in @pool* job in unit))
+  ([pool job in unit]
+   (scheduled/run-in pool job in unit)))
 
 (defn start-server
   [& [{:keys [num-workers queues redis pool handler]}]]

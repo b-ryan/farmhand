@@ -10,12 +10,8 @@
 (defn scheduled-key ^String [] (r/redis-key "scheduled"))
 
 (defn run-at
-  "Schedules a job to be run at a specified time. Farmhand will queue the job
-  roughly when it is scheduled, but currently does not guarantee accuracy.
-
-  The 'at' argument should be a timestamp specified in milliseconds.
-
-  Returns the job's ID."
+  "Schedules a job to run at some time in the future. See the docs in
+  farmhand.core/run-at for more details."
   [pool job at]
   (let [{job-id :job-id :as normalized} (jobs/normalize job)]
     (with-transaction pool transaction
@@ -30,16 +26,8 @@
                             :days (* 1000 60 60 24)})
 
 (defn run-in
-  "Schedules a job to be run at some time from now. Like run-at, the job will
-  be queued roughly around the requested time.
-
-  The 'unit' argument can be one of :milliseconds, :seconds, :minutes, :hours,
-  or :days and specifies the unit of 'in'. For example, schedule a job in 2
-  minutes with
-
-    (run-in pool job 2 :minutes)
-
-  Returns the job's ID."
+  "Schedules a job to run at some time relative to now. See the docs in
+  farmhand.core/run-in for more details."
   [pool job in unit]
   {:pre [(get multipliers unit)]}
   (let [multiplier (get multipliers unit)
