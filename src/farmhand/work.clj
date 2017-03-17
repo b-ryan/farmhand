@@ -7,8 +7,8 @@
 (def ^:private no-jobs-sleep-ms 50)
 
 (defn run-once
-  [pool queue-defs handler]
-  (if-let [job-id (->> (queue/queue-order queue-defs)
+  [pool queues handler]
+  (if-let [job-id (->> (queue/queue-order queues)
                        (queue/dequeue pool))]
     (handler {:job-id job-id :pool pool})
     ::no-jobs-available))
@@ -22,12 +22,12 @@
     (Thread/sleep no-jobs-sleep-ms)))
 
 (defn work-thread
-  [pool stop-chan queue-defs handler]
+  [pool stop-chan queues handler]
   (async/thread
-    (log/info "in main loop" queue-defs)
+    (log/info "in main loop" queues)
     (safe-loop
       (async/alt!!
         stop-chan :exit-loop
-        :default (-> (run-once pool queue-defs handler)
+        :default (-> (run-once pool queues handler)
                      (sleep-if-no-jobs))))
     (log/info "exiting main loop")))

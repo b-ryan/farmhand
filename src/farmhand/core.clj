@@ -84,8 +84,8 @@
         threads (concat
                   (for [_ (range (config/num-workers num-workers))]
                     (work/work-thread pool stop-chan queues handler))
-                  [(registry/cleanup-thread pool stop-chan)
-                   (scheduled/schedule-thread pool stop-chan)])
+                  [(scheduled/schedule-thread pool stop-chan queues)
+                   (registry/cleanup-thread pool stop-chan)])
         server {:pool pool
                 :stop-chan stop-chan
                 :threads (doall threads)}]

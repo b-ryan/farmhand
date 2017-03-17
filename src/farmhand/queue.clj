@@ -12,9 +12,9 @@
 (defn queue-key ^String [queue-name] (r/redis-key "queue:" queue-name))
 
 (defn push
-  [^Transaction transaction job-id queue]
-  (let [queue-key (queue-key queue)]
-    (.sadd transaction (all-queues-key) (r/str-arr queue))
+  [^Transaction transaction job-id queue-name]
+  (let [queue-key (queue-key queue-name)]
+    (.sadd transaction (all-queues-key) (r/str-arr queue-name))
     (.lpush transaction queue-key (r/str-arr job-id))
     (jobs/update-props transaction job-id {:status "queued"})))
 
