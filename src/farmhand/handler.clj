@@ -28,7 +28,38 @@
   [job-id pool result]
   (queue/complete job-id pool :result result))
 
-(defn handler
+(defn- fetch-job
+  [{:keys [job-id pool] :as request}]
+  (assoc request
+         :job (-> job-id
+                  (jobs/fetch-body pool)
+                  jobs/assoc-fn-var)))
+
+(defn- mark-in-progress
+  [{:keys [job-id pool] :as request}]
+  (with-jedis pool jedis
+    (let [pipeline (.pipelined jedis)]
+      (jobs/update-props pipeline job-id {:status "processing"})
+      (.sync pipeline)))
+  request)
+
+(defn- handle-response
+  [{:keys [job-id pool]} {:keys [status result handled?] :as response}]
+  (when-not handled?
+    (case status
+      :failure (handle-failure job-id pool result)
+      :success (handle-success job-id pool result)))
+  response)
+
+
+(defn execute-job
+  "Executes the job's function with the defined arguments. If the function
+  cannot be found, returns a failed response where the reason is
+  :no-implementation.
+
+  This function does not handle any exceptions. You must use this in
+  conjunction with wrap-exception-handler or with your own exception handler
+  middleware."
   [{{fn-var :fn-var args :args} :job}]
   (if fn-var
     {:status :success
@@ -37,6 +68,9 @@
      :result {:reason :no-implementation}}))
 
 (defn wrap-exception-handler
+  "Middleware that catches exceptions. Relies on the farmhand.utils/fatal?
+  function to define whether an exception can be handled. If an exception is
+  considered fatal, then the exception is rethrown."
   [handler]
   (fn exception-handler [request]
     (try
@@ -46,34 +80,33 @@
         {:status :failure
          :result {:reason :exception :exception e}}))))
 
-(defn wrap-fetch-job
-  [handler]
-  (fn fetch-job [{:keys [job-id pool] :as request}]
-    (handler (assoc request
-                    :job (-> job-id
-                             (jobs/fetch-body pool)
-                             jobs/assoc-fn-var)))))
+(defn wrap-outer
+  "Middleware which performs the basics of the job flow. It marks the job as in
+  progress, fetches the body of the job from Redis, and executes the given
+  handler. Then handles the response by either marking the job as failed or
+  completed.
 
-(defn wrap-mark-in-progress
+  If the response map contains a truthy value for the :handled? key, then the
+  job will not be marked as either failed or success. It assumes some other
+  middleware took care of that."
   [handler]
-  (fn mark-in-progress [{:keys [job-id pool] :as request}]
-    (with-jedis pool jedis
-      (let [pipeline (.pipelined jedis)]
-        (jobs/update-props pipeline job-id {:status "processing"})
-        (.sync pipeline)))
-    (handler request)))
-
-(defn wrap-handle-response
-  [handler]
-  (fn handle-response [{:keys [job-id pool] :as request}]
-    (let [{:keys [status result handled?] :as response} (handler request)]
-      (when-not handled?
-        (case status
-          :failure (handle-failure job-id pool result)
-          :success (handle-success job-id pool result)))
-      response)))
+  ;; Originally this function was split into a few different middlewares:
+  ;;  wrap-mark-in-progress
+  ;;  wrap-fetch-job
+  ;;  wrap-handle-response
+  ;; But I'm not sure there is really a use for this. The code is simpler to
+  ;; just have one outer wrapper. If the use case ever comes up for splitting
+  ;; it, then it can be revisited.
+  (fn outer [request]
+    (let [request_ (-> request
+                       mark-in-progress
+                       fetch-job)
+          response (handler request_)]
+      (handle-response request_ response))))
 
 (defn wrap-debug
+  "Utility function provided for convenience. Logs the job-id before and after
+  the inner handler is executed."
   [handler]
   (fn debug [{:keys [job-id] :as request}]
     (log/debugf "received job %s" job-id)
@@ -81,9 +114,5 @@
       (log/debugf "completed job %s" job-id)
       response)))
 
-(def pre-completion-handler (-> handler
-                                wrap-exception-handler
-                                wrap-fetch-job
-                                wrap-mark-in-progress))
-
-(def default-handler (wrap-handle-response pre-completion-handler))
+(def execute-with-ex-handle (wrap-exception-handler execute-job))
+(def default-handler (wrap-outer execute-with-ex-handle))
