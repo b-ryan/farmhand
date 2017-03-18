@@ -6,7 +6,7 @@
             [farmhand.queue :as queue]
             [farmhand.redis :as redis :refer [with-jedis with-transaction]]
             [farmhand.registry :as registry]
-            [farmhand.scheduled :as scheduled]
+            [farmhand.schedule :as schedule]
             [farmhand.work :as work])
   (:gen-class))
 
@@ -52,9 +52,9 @@
 
   Returns the job's ID."
   ([job at]
-   (scheduled/run-at @pool* job at))
+   (schedule/run-at @pool* job at))
   ([pool job at]
-   (scheduled/run-at pool job at)))
+   (schedule/run-at pool job at)))
 
 (defn run-in
   "Schedules a job to be run at some time from now. Like run-at, the job will
@@ -71,9 +71,9 @@
 
   Returns the job's ID."
   ([job in unit]
-   (scheduled/run-in @pool* job in unit))
+   (schedule/run-in @pool* job in unit))
   ([pool job in unit]
-   (scheduled/run-in pool job in unit)))
+   (schedule/run-in pool job in unit)))
 
 (defn start-server
   [& [{:keys [num-workers queues redis pool handler]}]]
@@ -84,7 +84,7 @@
         threads (concat
                   (for [_ (range (config/num-workers num-workers))]
                     (work/work-thread pool stop-chan queues handler))
-                  [(scheduled/schedule-thread pool stop-chan queues)
+                  [(schedule/schedule-thread pool stop-chan queues)
                    (registry/cleanup-thread pool stop-chan)])
         server {:pool pool
                 :stop-chan stop-chan
@@ -118,7 +118,7 @@
   (enqueue @pool* {:fn-var #'slow-job :args ["i am slow"]})
   (enqueue @pool* {:fn-var #'failing-job :args ["fail"]})
 
-  (scheduled/run-in @pool* {:fn-var #'slow-job :args ["i am slow"]} 1 :minutes)
+  (schedule/run-in @pool* {:fn-var #'slow-job :args ["i am slow"]} 1 :minutes)
 
   (stop-server)
   )

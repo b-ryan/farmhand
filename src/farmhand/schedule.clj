@@ -1,4 +1,4 @@
-(ns farmhand.scheduled
+(ns farmhand.schedule
   (:require [clojure.core.async :as async]
             [clojure.tools.logging :as log]
             [farmhand.jobs :as jobs]
