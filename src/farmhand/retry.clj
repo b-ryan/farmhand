@@ -10,21 +10,28 @@
 
 (defmethod update-retry nil [_] nil)
 
+;; 0   1   2   3   4    5    6    7    =  8 attempts
+;; 1 + 2 + 4 + 8 + 16 + 32 + 64 + 128  =  ~10 days
 (def ^:private backoff-defaults
   {:num-attempts 0
+   :max-attempts 8
    :coefficient 1
    :exp-base 2
    :delay-unit :hours})
 
 (defmethod update-retry "backoff"
+  ;; A retry strategy that uses an exponential backoff with a maximum number
+  ;; of retries. By default, will cause the first retry to occur in roughly 1
+  ;; hour, the next in 2 hours, the next in 4 hours, etc. until the maximum
+  ;; number of attempts has occurred.
   [{:keys [retry] :as job}]
-  ;; TODO Implement either a max # of tries or max amount of time to retry.
   (let [retry (merge backoff-defaults retry)
-        {:keys [num-attempts coefficient exp-base]} retry
+        {:keys [num-attempts max-attempts coefficient exp-base]} retry
         min-delay-time (* coefficient (Math/pow exp-base num-attempts))]
-    (assoc retry
-           :num-attempts (inc num-attempts)
-           :delay-time (+ min-delay-time (rand min-delay-time)))))
+    (when (< (inc num-attempts) max-attempts)
+      (assoc retry
+             :num-attempts (inc num-attempts)
+             :delay-time (int (+ min-delay-time (rand min-delay-time)))))))
 
 (defn- handle-retry
   [{{:keys [job-id queue] :as job} :job pool :pool} response]

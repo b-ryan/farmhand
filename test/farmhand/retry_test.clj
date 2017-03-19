@@ -23,3 +23,13 @@
       (testing "job has not been added to either dead letters / completed"
         (is (= (.zrange jedis (q/completed-key) 0 10)) #{})
         (is (= (.zrange jedis (d/dead-letter-key) 0 10)) #{})))))
+
+(deftest max-attempts-reached
+  (let [job-id (fc/enqueue tu/pool {:fn-var #'fail :retry {:strategy "backoff" :max-attempts 1}})]
+    (work/run-once tu/pool [{:name "default"}] default-handler)
+    (with-jedis tu/pool jedis
+      (testing "job was scheduled to be run again"
+        (is (= (.zrange jedis (s/schedule-key "default") 0 10) #{})))
+      (testing "job has not been added to either dead letters / completed"
+        (is (= (.zrange jedis (q/completed-key) 0 10)) #{})
+        (is (= (.zrange jedis (d/dead-letter-key) 0 10)) #{job-id})))))

@@ -116,5 +116,4 @@
 (def default-handler (-> execute-job
                          wrap-exception-handler
                          wrap-retry
-                         wrap-debug
                          wrap-outer))
