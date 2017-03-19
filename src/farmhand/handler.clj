@@ -4,6 +4,7 @@
             [farmhand.jobs :as jobs]
             [farmhand.queue :as queue]
             [farmhand.redis :refer [with-jedis]]
+            [farmhand.retry :refer [wrap-retry]]
             [farmhand.utils :refer [fatal?]]))
 
 (defn- handle-failure
@@ -50,7 +51,6 @@
       :failure (handle-failure job-id pool result)
       :success (handle-success job-id pool result)))
   response)
-
 
 (defn execute-job
   "Executes the job's function with the defined arguments. If the function
@@ -105,14 +105,16 @@
       (handle-response request_ response))))
 
 (defn wrap-debug
-  "Utility function provided for convenience. Logs the job-id before and after
-  the inner handler is executed."
+  "Utility function provided for convenience. Logs the request and response."
   [handler]
-  (fn debug [{:keys [job-id] :as request}]
-    (log/debugf "received job %s" job-id)
+  (fn debug [request]
+    (log/debugf "received request %s" request)
     (let [response (handler request)]
-      (log/debugf "completed job %s" job-id)
+      (log/debugf "received response %s" response)
       response)))
 
-(def execute-with-ex-handle (wrap-exception-handler execute-job))
-(def default-handler (wrap-outer execute-with-ex-handle))
+(def default-handler (-> execute-job
+                         wrap-exception-handler
+                         wrap-retry
+                         wrap-debug
+                         wrap-outer))

@@ -5,9 +5,13 @@
             [farmhand.queue :as q]
             [farmhand.redis :as r :refer [with-jedis with-transaction]]
             [farmhand.utils :refer [now-millis safe-loop]])
-  (:import (redis.clients.jedis Jedis)))
+  (:import (redis.clients.jedis Jedis Transaction)))
 
 (defn schedule-key ^String [queue-name] (r/redis-key "schedule:" queue-name))
+
+(defn run-at*
+  [^Transaction transaction job-id queue-name at]
+  (.zadd transaction (schedule-key queue-name) (double at) ^String job-id))
 
 (defn run-at
   "Schedules a job to run at some time in the future. See the docs in
@@ -16,7 +20,7 @@
   (let [{job-id :job-id queue-name :queue :as normalized} (jobs/normalize job)]
     (with-transaction pool transaction
       (jobs/save-new transaction normalized)
-      (.zadd transaction (schedule-key queue-name) (double at) ^String job-id))
+      (run-at* transaction job-id queue-name at))
     job-id))
 
 (def ^:private multipliers {:milliseconds 1
@@ -25,14 +29,17 @@
                             :hours (* 1000 60 60)
                             :days (* 1000 60 60 24)})
 
+(defn from-now
+  [n unit]
+  {:pre [(get multipliers unit)]}
+  (let [multiplier (get multipliers unit)]
+    (+ (now-millis) (* n multiplier))))
+
 (defn run-in
   "Schedules a job to run at some time relative to now. See the docs in
   farmhand.core/run-in for more details."
-  [pool job in unit]
-  {:pre [(get multipliers unit)]}
-  (let [multiplier (get multipliers unit)
-        at (+ (now-millis) (* in multiplier))]
-    (run-at pool job at)))
+  [pool job n unit]
+  (run-at pool job (from-now n unit)))
 
 (defn- fetch-ready-id
   "Fetches the next job-id that is ready to be enqueued (or nil if there is

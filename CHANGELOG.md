@@ -5,6 +5,7 @@
 FEATURES
 
 - Job scheduling.
+- Automatic job retrying.
 
 BREAKING
 
@@ -12,6 +13,9 @@ BREAKING
   first argument. But you can continue to omit this argument to have the
   default pool be used. This is in an effort to make the argument order
   consistent across the codebase.
+- `farmhand.handler` namespace has been redone. Most of the public functions
+  have been renamed or removed. However the `default-handler` still works the
+  same, so if you don't have a custom handler you won't be affected.
 
 ## 0.6.0
 

@@ -36,9 +36,10 @@
   [pool sym & body]
   (let [tagged-sym (vary-meta sym assoc :tag `RedisPipeline)]
     `(with-jedis ~pool jedis#
-       (let [~sym (.multi jedis#)]
-         ~@body
-         (.exec ~sym)))))
+       (let [~sym (.multi jedis#)
+             ret# (do ~@body)]
+         (.exec ~sym)
+         ret#))))
 
 (def key-prefix "farmhand:")
 (defn redis-key [& args] (apply str key-prefix args))
