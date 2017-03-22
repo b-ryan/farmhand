@@ -80,6 +80,13 @@ you the most common usage.
   details.
 - Job processing is fully customizable through middleware support. See the
   [Middleware](https://github.com/b-ryan/farmhand/wiki/Middleware) docs.
+- Jobs can be scheduled to run at a later time. The docs are
+  [here](https://github.com/b-ryan/farmhand/wiki/Scheduling)
+- Automatic job retrying. Currently this is not enabled by default but is as
+  simple as `(enqueue {:fn-var #'job-function :retry {:strategy "backoff"}})`
+  which will cause you job to retry 8 times over about 10 days. The retry
+  mechanism is also fully customizable.
+  [Docs](https://github.com/b-ryan/farmhand/wiki/Retrying-Jobs).
 
 ## Documentation
 

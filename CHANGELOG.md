@@ -7,12 +7,14 @@ FEATURES
 - Job scheduling.
 - Automatic job retrying.
 
+See the Wiki documentation for details.
+
 BREAKING
 
 - Argument order to `farmhand.core/enqueue` has changed. The `pool` is now the
   first argument. But you can continue to omit this argument to have the
-  default pool be used. This is in an effort to make the argument order
-  consistent across the codebase.
+  default pool be used. This was done in an effort to make the argument order
+  more consistent across the codebase.
 - `farmhand.handler` namespace has been redone. Most of the public functions
   have been renamed or removed. However the `default-handler` still works the
   same, so if you don't have a custom handler you won't be affected.
