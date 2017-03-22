@@ -84,7 +84,7 @@ you the most common usage.
   [here](https://github.com/b-ryan/farmhand/wiki/Scheduling)
 - Automatic job retrying. Currently this is not enabled by default but is as
   simple as `(enqueue {:fn-var #'job-function :retry {:strategy "backoff"}})`
-  which will cause you job to retry 8 times over about 10 days. The retry
+  which will cause your job to retry 8 times over about 10 days. The retry
   mechanism is also fully customizable.
   [Docs](https://github.com/b-ryan/farmhand/wiki/Retrying-Jobs).
 
