@@ -1,6 +1,7 @@
 (ns farmhand.schedule-test
   (:require [clojure.test :refer :all]
             [farmhand.core :refer [run-at run-in]]
+            [farmhand.jobs :as jobs]
             [farmhand.queue :as queue]
             [farmhand.schedule :as schedule]
             [farmhand.test-utils :as tu]
@@ -23,6 +24,7 @@
   (let [job-id (run-at tu/pool {:fn-var #'work-fn} earlier-than-now)]
     (is (seq job-id))
     (is (nil? (queue/dequeue tu/pool ["default"])))
+    (is (= (:status (jobs/fetch-body job-id tu/pool)) "scheduled"))
     (schedule/pull-and-enqueue tu/pool [{:name "default"}])
     (is (= (queue/dequeue tu/pool ["default"]) job-id))))
 

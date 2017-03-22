@@ -11,7 +11,8 @@
 
 (defn run-at*
   [^Transaction transaction job-id queue-name at]
-  (.zadd transaction (schedule-key queue-name) (double at) ^String job-id))
+  (.zadd transaction (schedule-key queue-name) (double at) ^String job-id)
+  (jobs/update-props transaction job-id {:status "scheduled"}))
 
 (defn run-at
   "Schedules a job to run at some time in the future. See the docs in

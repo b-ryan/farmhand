@@ -1,6 +1,8 @@
 (ns farmhand.retry
   (:require [farmhand.jobs :as jobs]
             [farmhand.redis :refer [with-transaction]]
+            [farmhand.queue :as queue]
+            [farmhand.registry :as registry]
             [farmhand.schedule :as schedule]))
 
 (defmulti update-retry
@@ -16,7 +18,6 @@
   {:num-attempts 0
    :max-attempts 8
    :coefficient 1
-   :exp-base 2
    :delay-unit :hours})
 
 (defmethod update-retry "backoff"
@@ -26,12 +27,12 @@
   ;; number of attempts has occurred.
   [{:keys [retry] :as job}]
   (let [retry (merge backoff-defaults retry)
-        {:keys [num-attempts max-attempts coefficient exp-base]} retry
-        min-delay-time (* coefficient (Math/pow exp-base num-attempts))]
+        {:keys [num-attempts max-attempts coefficient]} retry
+        delay-time (* coefficient (Math/pow 2 num-attempts))]
     (when (< (inc num-attempts) max-attempts)
       (assoc retry
              :num-attempts (inc num-attempts)
-             :delay-time (int (+ min-delay-time (rand min-delay-time)))))))
+             :delay-time (int delay-time)))))
 
 (defn- handle-retry
   [{{:keys [job-id queue] :as job} :job pool :pool} response]
@@ -41,8 +42,10 @@
       (if retry
         (let [delay-ts (schedule/from-now delay-time delay-unit)]
           (schedule/run-at* transaction job-id queue delay-ts)
+          (registry/delete transaction (queue/in-flight-key) job-id)
           (assoc response :handled? true))
         response))))
+
 
 (defn wrap-retry
   "Middleware for automatically scheduling jobs to be retried. This middleware
