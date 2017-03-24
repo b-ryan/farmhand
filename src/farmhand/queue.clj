@@ -4,7 +4,7 @@
             [farmhand.redis :as r :refer [with-jedis]]
             [farmhand.registry :as registry]
             [farmhand.utils :refer [now-millis]])
-  (:import (redis.clients.jedis Transaction)))
+  (:import (redis.clients.jedis Jedis Transaction)))
 
 (defn all-queues-key ^String [] (r/redis-key "queues"))
 (defn in-flight-key ^String [] (r/redis-key "inflight"))
@@ -17,6 +17,21 @@
     (.sadd transaction (all-queues-key) (r/str-arr queue-name))
     (.lpush transaction queue-key (r/str-arr job-id))
     (jobs/update-props transaction job-id {:status "queued"})))
+
+(defn describe-queues
+  "Returns a list of all queues and their current number of items."
+  [pool]
+  (with-jedis pool jedis
+    (doall (map (fn [^String queue-name]
+                  {:name queue-name
+                   :size (.llen jedis (queue-key queue-name))})
+                (.smembers jedis (all-queues-key))))))
+
+(defn purge
+  "Deletes all items from a queue"
+  [pool queue-name]
+  (with-jedis pool jedis
+    (.del jedis (queue-key queue-name))))
 
 (defn queue-order
   "Accepts a sequence of queue maps and returns a vector of queue names.
