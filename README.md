@@ -93,6 +93,8 @@ you the most common usage.
 The bulk of the documentation is available in the
 [Wiki](https://github.com/b-ryan/farmhand/wiki).
 
+API docs are available [here](http://farmhand-clj.com/codox/index.html).
+
 ## Web Interface
 
 The [Farmhand UI](https://github.com/b-ryan/farmhand-ui) project provides a web
