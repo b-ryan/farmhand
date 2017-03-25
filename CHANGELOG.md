@@ -2,6 +2,11 @@
 
 ## 0.7.1-SNAPSHOT
 
+FEATURES
+
+- `farmhand.queue/describe-queues` function to describe queues and their sizes
+- `farmhand.queue/purge` function to clear out a queue
+
 ## 0.7.0
 
 FEATURES
