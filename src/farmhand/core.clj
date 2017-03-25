@@ -115,6 +115,8 @@
     (defn slow-job [& args] (Thread/sleep 10000) :slow-result)
     (defn failing-job [& args] (throw (ex-info "foo" {:a :b}))))
 
+  (reset! pool* (redis/create-pool {}))
+
   (enqueue @pool* {:fn-var #'slow-job :args ["i am slow"]})
   (enqueue @pool* {:fn-var #'failing-job :args ["fail"]})
   (enqueue @pool* {:fn-var #'failing-job :args ["fail"]
