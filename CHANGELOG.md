@@ -1,6 +1,6 @@
 # Change Log
 
-## 0.7.1-SNAPSHOT
+## 0.7.1
 
 FEATURES
 
