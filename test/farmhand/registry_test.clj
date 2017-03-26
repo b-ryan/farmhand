@@ -2,7 +2,7 @@
   (:require [clojure.test :refer :all]
             [farmhand.jobs :as jobs]
             [farmhand.queue :as q]
-            [farmhand.redis :refer [with-transaction]]
+            [farmhand.redis :refer [with-transaction*]]
             [farmhand.registry :as registry]
             [farmhand.utils :refer [now-millis]]
             [farmhand.test-utils :as tu]))
@@ -14,23 +14,23 @@
 (def job3 {:job-id "baz" :fn-path "abc/def" :fn-var nil})
 
 (defmacro save
-  [transaction job expiration]
+  [context job expiration]
   `(with-redefs [registry/expiration (constantly ~expiration)]
-     (jobs/save-new ~transaction ~job)
-     (registry/add ~transaction (q/completed-key) (:job-id ~job))))
+     (jobs/save-new ~context ~job)
+     (registry/add (:transaction ~context) (q/completed-key) (:job-id ~job))))
 
 (defn save-jobs-fixture
   [f]
-  (with-transaction tu/pool t
-    (save t job1 1234)
-    (save t job2 3456)
-    (save t job3 5678))
+  (with-transaction* [context tu/pool]
+    (save context job1 1234)
+    (save context job2 3456)
+    (save context job3 5678))
   (f))
 
 (use-fixtures :each tu/redis-test-fixture save-jobs-fixture)
 
 (deftest sorts-items-by-oldest-first
-  (is (= (registry/page (q/completed-key) tu/pool {})
+  (is (= (registry/page tu/pool (q/completed-key) {})
          {:items [{:expiration 1234 :job job1}
                   {:expiration 3456 :job job2}
                   {:expiration 5678 :job job3}]
@@ -38,7 +38,7 @@
           :next-page nil})))
 
 (deftest sorts-items-by-newest-first
-  (is (= (registry/page (q/completed-key) tu/pool {:newest-first? true})
+  (is (= (registry/page tu/pool (q/completed-key) {:newest-first? true})
          {:items [{:expiration 5678 :job job3}
                   {:expiration 3456 :job job2}
                   {:expiration 1234 :job job1}]
@@ -46,7 +46,7 @@
           :next-page nil})))
 
 (deftest pages-are-handled
-  (is (= (registry/page (q/completed-key) tu/pool {:page 1 :size 1})
+  (is (= (registry/page tu/pool (q/completed-key) {:page 1 :size 1})
          {:items [{:expiration 3456 :job job2}]
           :prev-page 0
           :next-page 2})))
@@ -54,7 +54,7 @@
 (deftest cleanup-removes-older-jobs
   (with-redefs [now-millis (constantly 4000)]
     (registry/cleanup tu/pool))
-  (is (= (registry/page (q/completed-key) tu/pool {})
+  (is (= (registry/page tu/pool (q/completed-key) {})
          {:items [{:expiration 5678 :job job3}]
           :prev-page nil
           :next-page nil})))

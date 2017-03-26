@@ -24,7 +24,7 @@
   (let [job-id (run-at tu/pool {:fn-var #'work-fn} earlier-than-now)]
     (is (seq job-id))
     (is (nil? (queue/dequeue tu/pool ["default"])))
-    (is (= (:status (jobs/fetch-body job-id tu/pool)) "scheduled"))
+    (is (= (:status (jobs/fetch-body tu/pool job-id)) "scheduled"))
     (schedule/pull-and-enqueue tu/pool [{:name "default"}])
     (is (= (queue/dequeue tu/pool ["default"]) job-id))))
 

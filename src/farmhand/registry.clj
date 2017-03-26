@@ -2,7 +2,7 @@
   (:require [clojure.core.async :as async]
             [clojure.tools.logging :as log]
             [farmhand.jobs :as jobs]
-            [farmhand.redis :as r :refer [with-jedis]]
+            [farmhand.redis :as r :refer [with-jedis*]]
             [farmhand.utils :refer [now-millis safe-loop]])
   (:import (redis.clients.jedis Jedis RedisPipeline Tuple)))
 
@@ -54,11 +54,11 @@
         (dec))))
 
 (defn page
-  [key pool {:keys [page] :as options}]
-  (with-jedis pool jedis
-    (let [fetch-body #(update-in % [:job] jobs/fetch-body* jedis)
+  [context key {:keys [page] :as options}]
+  (with-jedis* [{:keys [jedis] :as context} context]
+    (let [fetcher #(update-in % [:job] (partial jobs/fetch-body context))
           items (->> (page-raw jedis key options)
-                     (map fetch-body))
+                     (map fetcher))
           last-page (last-page jedis key options)
           page (or page 0)]
       {:items items
@@ -66,9 +66,9 @@
        :next-page (when (< page last-page) (inc page))})))
 
 (defn cleanup
-  [pool]
+  [context]
   (let [now (now-millis)]
-    (with-jedis pool jedis
+    (with-jedis* [{:keys [^Jedis jedis]} context]
       (doseq [^String key (all-registries jedis)]
         (let [num-removed (.zremrangeByScore jedis key (double 0) (double now))]
           (when (> num-removed 0)
@@ -77,11 +77,11 @@
 (def ^:private loop-sleep-ms (* 1000 60))
 
 (defn cleanup-thread
-  [pool stop-chan]
+  [context stop-chan]
   (async/thread
     (log/info "in registry cleanup thread")
     (safe-loop
       (async/alt!!
         stop-chan :exit-loop
-        (async/timeout loop-sleep-ms) (cleanup pool)))
+        (async/timeout loop-sleep-ms) (cleanup context)))
     (log/info "exiting registry cleanup thread")))

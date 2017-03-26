@@ -1,7 +1,7 @@
 (ns farmhand.queue
   (:require [clojure.java.io :as io]
             [farmhand.jobs :as jobs]
-            [farmhand.redis :as r :refer [with-jedis]]
+            [farmhand.redis :as r :refer [with-jedis* with-transaction*]]
             [farmhand.registry :as registry]
             [farmhand.utils :refer [now-millis]])
   (:import (redis.clients.jedis Jedis Transaction)))
@@ -12,16 +12,16 @@
 (defn queue-key ^String [queue-name] (r/redis-key "queue:" queue-name))
 
 (defn push
-  [^Transaction transaction job-id queue-name]
-  (let [queue-key (queue-key queue-name)]
+  [context job-id queue-name]
+  (with-transaction* [{:keys [^Transaction transaction] :as context} context]
     (.sadd transaction (all-queues-key) (r/str-arr queue-name))
-    (.lpush transaction queue-key (r/str-arr job-id))
-    (jobs/update-props transaction job-id {:status "queued"})))
+    (.lpush transaction (queue-key queue-name) (r/str-arr job-id))
+    (jobs/update-props context job-id {:status "queued"})))
 
 (defn describe-queues
   "Returns a list of all queues and their current number of items."
-  [pool]
-  (with-jedis pool jedis
+  [context]
+  (with-jedis* [{:keys [^Jedis jedis]} context]
     (doall (map (fn [^String queue-name]
                   {:name queue-name
                    :size (.llen jedis (queue-key queue-name))})
@@ -29,8 +29,8 @@
 
 (defn purge
   "Deletes all items from a queue"
-  [pool queue-name]
-  (with-jedis pool jedis
+  [context queue-name]
+  (with-jedis* [{:keys [^Jedis jedis]} context]
     (.del jedis (queue-key queue-name))))
 
 (defn queue-order
@@ -67,22 +67,20 @@
 (def ^:private ^String dequeue-lua (slurp (io/resource "farmhand/dequeue.lua")))
 
 (defn dequeue
-  [pool queue-names]
+  [context queue-names]
   {:pre [(vector? queue-names)]}
   (let [keys (mapv queue-key queue-names)
         now-str (str (now-millis))
         params (r/seq->str-arr (conj keys (in-flight-key) now-str))
         num-keys ^Integer (inc (count keys))]
-    (with-jedis pool jedis
+    (with-jedis* [{:keys [^Jedis jedis]} context]
       (.eval jedis dequeue-lua num-keys params))))
 
 (defn complete
-  [job-id pool & {:keys [result]}]
-  (with-jedis pool jedis
-    (let [transaction (.multi jedis)]
-      (jobs/update-props transaction job-id {:status "complete"
-                                             :result result
-                                             :completed-at (now-millis)})
-      (registry/delete transaction (in-flight-key) job-id)
-      (registry/add transaction (completed-key) job-id)
-      (.exec transaction))))
+  [context job-id & {:keys [result]}]
+  (with-transaction* [{:keys [^Transaction transaction] :as context} context]
+    (jobs/update-props context job-id {:status "complete"
+                                       :result result
+                                       :completed-at (now-millis)})
+    (registry/delete transaction (in-flight-key) job-id)
+    (registry/add transaction (completed-key) job-id)))

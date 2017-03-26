@@ -1,7 +1,7 @@
 (ns farmhand.jobs
   (:require [clojure.edn :as edn]
             [clojure.string :refer [split]]
-            [farmhand.redis :as r :refer [with-jedis]]
+            [farmhand.redis :as r :refer [with-jedis* with-transaction*]]
             [farmhand.utils :as utils :refer [now-millis]])
   (:import (java.io FileNotFoundException)
            (java.util UUID)
@@ -44,14 +44,20 @@
       (utils/update-vals pr-str)))
 
 (defn save-new
-  [^RedisPipeline pipeline {job-id :job-id :as job}]
-  (let [key (job-key job-id)]
-    (.hmset pipeline key (prepare-to-save job))
-    (.expire pipeline key ttl-secs)))
+  [context {job-id :job-id :as job}]
+  ;; The typehint using RedisPipeline here is because using Transaction creates
+  ;; an ambiguous typehint
+  (with-transaction* [{:keys [^RedisPipeline transaction]} context]
+    (let [key (job-key job-id)]
+      (.hmset transaction key (prepare-to-save job))
+      (.expire transaction key ttl-secs))))
 
 (defn update-props
-  [^RedisPipeline pipeline job-id props]
-  (.hmset pipeline (job-key job-id) (prepare-to-save props)))
+  [context job-id props]
+  ;; The typehint using RedisPipeline here is because using Transaction creates
+  ;; an ambiguous typehint
+  (with-transaction* [{:keys [^RedisPipeline transaction]} context]
+    (.hmset transaction (job-key job-id) (prepare-to-save props))))
 
 (defn assoc-fn-var
   [{:keys [fn-path] :as job}]
@@ -66,14 +72,10 @@
     (catch FileNotFoundException e))
   (assoc job :fn-var (some-> fn-path (symbol) (resolve))))
 
-(defn fetch-body*
-  [job-id ^Jedis jedis]
-  (-> (into {} (.hgetAll jedis (job-key job-id)))
-      (utils/update-keys keyword)
-      (utils/update-vals edn/read-string)
-      (assoc-fn-var)))
-
 (defn fetch-body
-  [job-id pool]
-  (with-jedis pool jedis
-    (fetch-body* job-id jedis)))
+  [context job-id]
+  (with-jedis* [{:keys [^Jedis jedis]} context]
+    (-> (into {} (.hgetAll jedis (job-key job-id)))
+        (utils/update-keys keyword)
+        (utils/update-vals edn/read-string)
+        (assoc-fn-var))))
