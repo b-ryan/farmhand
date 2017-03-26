@@ -17,7 +17,7 @@
   [context job expiration]
   `(with-redefs [registry/expiration (constantly ~expiration)]
      (jobs/save-new ~context ~job)
-     (registry/add (:transaction ~context) (q/completed-key) (:job-id ~job))))
+     (registry/add ~context (q/completed-key) (:job-id ~job))))
 
 (defn save-jobs-fixture
   [f]

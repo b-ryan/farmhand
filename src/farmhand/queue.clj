@@ -79,26 +79,26 @@
 
 (defn complete
   [context job-id & {:keys [result]}]
-  (with-transaction* [{:keys [^Transaction transaction] :as context} context]
+  (with-transaction* [context context]
     (jobs/update-props context job-id {:status "complete"
                                        :result result
                                        :completed-at (now-millis)})
-    (registry/delete transaction (in-flight-key) job-id)
-    (registry/add transaction (completed-key) job-id)))
+    (registry/delete context (in-flight-key) job-id)
+    (registry/add context (completed-key) job-id)))
 
 (defn requeue
   [context job-id]
   (with-jedis* [{:keys [jedis] :as context} context]
     (let [{:keys [queue]} (jobs/fetch-body context job-id)]
-      (with-transaction* [{:keys [transaction] :as context} context]
-        (registry/add transaction (dead-letter-key) job-id)
+      (with-transaction* [context context]
+        (registry/add context (dead-letter-key) job-id)
         (push context job-id queue)))))
 
 (defn fail
   [context job-id & {:keys [reason]}]
-  (with-transaction* [{:keys [transaction] :as context} context]
-    (registry/delete transaction (in-flight-key) job-id)
-    (registry/add transaction (dead-letter-key) job-id)
+  (with-transaction* [context context]
+    (registry/delete context (in-flight-key) job-id)
+    (registry/add context (dead-letter-key) job-id)
     (jobs/update-props context job-id {:status "failed"
                                        :reason reason
                                        :failed-at (now-millis)})))

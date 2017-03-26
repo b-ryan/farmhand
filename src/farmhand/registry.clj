@@ -2,7 +2,7 @@
   (:require [clojure.core.async :as async]
             [clojure.tools.logging :as log]
             [farmhand.jobs :as jobs]
-            [farmhand.redis :as r :refer [with-jedis*]]
+            [farmhand.redis :as r :refer [with-jedis* with-transaction*]]
             [farmhand.utils :refer [now-millis safe-loop]])
   (:import (redis.clients.jedis Jedis RedisPipeline Tuple)))
 
@@ -12,21 +12,25 @@
 (defn all-registries-key ^String [] (r/redis-key "registries"))
 
 (defn add
-  [^RedisPipeline pipeline ^String key ^String job-id]
-  (.sadd pipeline (all-registries-key) (r/str-arr key))
-  (.zadd pipeline key (double (expiration)) job-id))
+  [context ^String key ^String job-id]
+  (with-transaction* [{:keys [^RedisPipeline transaction]} context]
+    (.sadd transaction (all-registries-key) (r/str-arr key))
+    (.zadd transaction key (double (expiration)) job-id)))
 
 (defn delete
-  [^RedisPipeline pipeline ^String key ^String job-id]
-  (.zrem pipeline key (r/str-arr job-id)))
+  [context ^String key ^String job-id]
+  (with-transaction* [{:keys [^RedisPipeline transaction]} context]
+    (.zrem transaction key (r/str-arr job-id))))
 
 (defn- num-items
-  [^Jedis jedis ^String key]
-  (.zcard jedis key))
+  [context ^String key]
+  (with-jedis* [{:keys [^Jedis jedis]} context]
+    (.zcard jedis key)))
 
 (defn- all-registries
-  [^Jedis jedis]
-  (.smembers jedis (all-registries-key)))
+  [context]
+  (with-jedis* [{:keys [^Jedis jedis]} context]
+    (.smembers jedis (all-registries-key))))
 
 (def ^:private default-size 25)
 
@@ -69,7 +73,7 @@
   [context]
   (let [now (now-millis)]
     (with-jedis* [{:keys [^Jedis jedis]} context]
-      (doseq [^String key (all-registries jedis)]
+      (doseq [^String key (all-registries context)]
         (let [num-removed (.zremrangeByScore jedis key (double 0) (double now))]
           (when (> num-removed 0)
             (log/debugf "Removed %d items from %s" num-removed key)))))))
