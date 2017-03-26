@@ -9,12 +9,12 @@
 (def ttl-ms (* 1000 jobs/ttl-secs))
 
 (defn expiration [] (+ (now-millis) ttl-ms))
-(defn all-registries-key ^String [] (r/redis-key "registries"))
+(defn all-registries-key ^String [c] (r/redis-key c "registries"))
 
 (defn add
   [context ^String key ^String job-id]
   (with-transaction* [{:keys [^RedisPipeline transaction]} context]
-    (.sadd transaction (all-registries-key) (r/str-arr key))
+    (.sadd transaction (all-registries-key context) (r/str-arr key))
     (.zadd transaction key (double (expiration)) job-id)))
 
 (defn delete
@@ -30,7 +30,7 @@
 (defn- all-registries
   [context]
   (with-jedis* [{:keys [^Jedis jedis]} context]
-    (.smembers jedis (all-registries-key))))
+    (.smembers jedis (all-registries-key context))))
 
 (def ^:private default-size 25)
 

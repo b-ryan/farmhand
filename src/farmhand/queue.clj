@@ -6,17 +6,17 @@
             [farmhand.utils :refer [now-millis]])
   (:import (redis.clients.jedis Jedis Transaction)))
 
-(defn all-queues-key ^String [] (r/redis-key "queues"))
-(defn in-flight-key ^String [] (r/redis-key "inflight"))
-(defn completed-key ^String [] (r/redis-key "completed"))
-(defn queue-key ^String [queue-name] (r/redis-key "queue:" queue-name))
-(defn dead-letter-key ^String [] (r/redis-key "dead"))
+(defn all-queues-key ^String [c] (r/redis-key c "queues"))
+(defn in-flight-key ^String [c] (r/redis-key c "inflight"))
+(defn completed-key ^String [c] (r/redis-key c "completed"))
+(defn queue-key ^String [c queue-name] (r/redis-key c "queue:" queue-name))
+(defn dead-letter-key ^String [c] (r/redis-key c "dead"))
 
 (defn push
   [context job-id queue-name]
   (with-transaction* [{:keys [^Transaction transaction] :as context} context]
-    (.sadd transaction (all-queues-key) (r/str-arr queue-name))
-    (.lpush transaction (queue-key queue-name) (r/str-arr job-id))
+    (.sadd transaction (all-queues-key context) (r/str-arr queue-name))
+    (.lpush transaction (queue-key context queue-name) (r/str-arr job-id))
     (jobs/update-props context job-id {:status "queued"})))
 
 (defn describe-queues
@@ -25,14 +25,14 @@
   (with-jedis* [{:keys [^Jedis jedis]} context]
     (doall (map (fn [^String queue-name]
                   {:name queue-name
-                   :size (.llen jedis (queue-key queue-name))})
-                (.smembers jedis (all-queues-key))))))
+                   :size (.llen jedis (queue-key context queue-name))})
+                (.smembers jedis (all-queues-key context))))))
 
 (defn purge
   "Deletes all items from a queue"
   [context queue-name]
   (with-jedis* [{:keys [^Jedis jedis]} context]
-    (.del jedis (queue-key queue-name))))
+    (.del jedis (queue-key context queue-name))))
 
 (defn queue-order
   "Accepts a sequence of queue maps and returns a vector of queue names.
@@ -70,9 +70,9 @@
 (defn dequeue
   [context queue-names]
   {:pre [(vector? queue-names)]}
-  (let [keys (mapv queue-key queue-names)
+  (let [keys (mapv #(queue-key context %) queue-names)
         now-str (str (now-millis))
-        params (r/seq->str-arr (conj keys (in-flight-key) now-str))
+        params (r/seq->str-arr (conj keys (in-flight-key context) now-str))
         num-keys ^Integer (inc (count keys))]
     (with-jedis* [{:keys [^Jedis jedis]} context]
       (.eval jedis dequeue-lua num-keys params))))
@@ -83,22 +83,22 @@
     (jobs/update-props context job-id {:status "complete"
                                        :result result
                                        :completed-at (now-millis)})
-    (registry/delete context (in-flight-key) job-id)
-    (registry/add context (completed-key) job-id)))
+    (registry/delete context (in-flight-key context) job-id)
+    (registry/add context (completed-key context) job-id)))
 
 (defn requeue
   [context job-id]
   (with-jedis* [{:keys [jedis] :as context} context]
     (let [{:keys [queue]} (jobs/fetch-body context job-id)]
       (with-transaction* [context context]
-        (registry/add context (dead-letter-key) job-id)
+        (registry/add context (dead-letter-key context) job-id)
         (push context job-id queue)))))
 
 (defn fail
   [context job-id & {:keys [reason]}]
   (with-transaction* [context context]
-    (registry/delete context (in-flight-key) job-id)
-    (registry/add context (dead-letter-key) job-id)
+    (registry/delete context (in-flight-key context) job-id)
+    (registry/add context (dead-letter-key context) job-id)
     (jobs/update-props context job-id {:status "failed"
                                        :reason reason
                                        :failed-at (now-millis)})))

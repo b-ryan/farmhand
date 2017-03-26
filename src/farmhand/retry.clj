@@ -42,7 +42,7 @@
       (if retry
         (let [delay-ts (schedule/from-now delay-time delay-unit)]
           (schedule/run-at* context job-id queue delay-ts)
-          (registry/delete context (queue/in-flight-key) job-id)
+          (registry/delete context (queue/in-flight-key context) job-id)
           (assoc response :handled? true))
         response))))
 

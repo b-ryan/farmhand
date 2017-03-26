@@ -44,5 +44,7 @@
          (.exec txn#)
          ret#))))
 
-(def key-prefix "farmhand:")
-(defn redis-key [& args] (apply str key-prefix args))
+(def default-prefix "farmhand:")
+(defn redis-key
+  [{:keys [prefix] :or {prefix default-prefix}} & args]
+  (apply str prefix args))

@@ -7,12 +7,12 @@
             [farmhand.utils :refer [now-millis safe-loop]])
   (:import (redis.clients.jedis Jedis Transaction)))
 
-(defn schedule-key ^String [queue-name] (r/redis-key "schedule:" queue-name))
+(defn schedule-key ^String [c queue-name] (r/redis-key c "schedule:" queue-name))
 
 (defn run-at*
   [context job-id queue-name at]
   (with-transaction* [{:keys [^Transaction transaction] :as context} context]
-    (.zadd transaction (schedule-key queue-name) (double at) ^String job-id)
+    (.zadd transaction (schedule-key context queue-name) (double at) ^String job-id)
     (jobs/update-props context job-id {:status "scheduled"})))
 
 (defn run-at
@@ -46,8 +46,9 @@
 (defn- fetch-ready-id
   "Fetches the next job-id that is ready to be enqueued (or nil if there is
   none)."
-  [^Jedis jedis queue-name ^String now]
-  (-> (.zrangeByScore jedis (schedule-key queue-name) "-inf" now (int 0) (int 1))
+  [{:keys [^Jedis jedis] :as context} queue-name ^String now]
+  (-> (.zrangeByScore jedis (schedule-key context queue-name)
+                      "-inf" now (int 0) (int 1))
       (first)))
 
 (defn pull-and-enqueue
@@ -55,10 +56,10 @@
   (let [now-str (str (now-millis))]
     (with-jedis* [{:keys [^Jedis jedis] :as context} context]
       (doseq [{queue-name :name} queues
-              :let [sch-key (schedule-key queue-name)]]
+              :let [sch-key (schedule-key context queue-name)]]
         (loop []
           (.watch jedis (r/str-arr sch-key))
-          (if-let [job-id (fetch-ready-id jedis queue-name now-str)]
+          (if-let [job-id (fetch-ready-id context queue-name now-str)]
             (do
               (with-transaction* [{:keys [^Transaction transaction] :as context} context]
                 (.zrem transaction sch-key (r/str-arr job-id))

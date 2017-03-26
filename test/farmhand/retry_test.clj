@@ -19,12 +19,12 @@
     (work/run-once tu/pool [{:name "default"}] default-handler)
     (with-jedis* [{:keys [jedis]} tu/pool]
       (testing "job was scheduled to be run again"
-        (is (= (.zrange jedis (s/schedule-key "default") 0 10) #{job-id})))
+        (is (= (.zrange jedis (s/schedule-key tu/pool "default") 0 10) #{job-id})))
       (testing "job has not been added to either dead letters / completed"
-        (is (= (.zrange jedis (q/completed-key) 0 10) #{}))
-        (is (= (.zrange jedis (q/dead-letter-key) 0 10) #{})))
+        (is (= (.zrange jedis (q/completed-key tu/pool) 0 10) #{}))
+        (is (= (.zrange jedis (q/dead-letter-key tu/pool) 0 10) #{})))
       (testing "job as removed from in progress"
-        (is (= (.zrange jedis (q/in-flight-key) 0 10) #{}))
+        (is (= (.zrange jedis (q/in-flight-key tu/pool) 0 10) #{}))
         (is (= (:status (jobs/fetch-body tu/pool job-id)) "scheduled"))))))
 
 (deftest max-attempts-reached
@@ -32,7 +32,7 @@
     (work/run-once tu/pool [{:name "default"}] default-handler)
     (with-jedis* [{:keys [jedis]} tu/pool]
       (testing "job was scheduled to be run again"
-        (is (= (.zrange jedis (s/schedule-key "default") 0 10) #{})))
+        (is (= (.zrange jedis (s/schedule-key tu/pool "default") 0 10) #{})))
       (testing "job has been added to dead letters"
-        (is (= (.zrange jedis (q/completed-key) 0 10) #{}))
-        (is (= (.zrange jedis (q/dead-letter-key) 0 10) #{job-id}))))))
+        (is (= (.zrange jedis (q/completed-key tu/pool) 0 10) #{}))
+        (is (= (.zrange jedis (q/dead-letter-key tu/pool) 0 10) #{job-id}))))))

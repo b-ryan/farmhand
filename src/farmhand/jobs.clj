@@ -10,7 +10,7 @@
 (def ttl-secs (* 60 60 24 60)) ;; 60 days
 (def default-queue "default")
 
-(defn job-key ^String [job-id] (r/redis-key "job:" job-id))
+(defn job-key ^String [c job-id] (r/redis-key c "job:" job-id))
 
 (defn- fn-path
   [fn_]
@@ -48,7 +48,7 @@
   ;; The typehint using RedisPipeline here is because using Transaction creates
   ;; an ambiguous typehint
   (with-transaction* [{:keys [^RedisPipeline transaction]} context]
-    (let [key (job-key job-id)]
+    (let [key (job-key context job-id)]
       (.hmset transaction key (prepare-to-save job))
       (.expire transaction key ttl-secs))))
 
@@ -57,7 +57,7 @@
   ;; The typehint using RedisPipeline here is because using Transaction creates
   ;; an ambiguous typehint
   (with-transaction* [{:keys [^RedisPipeline transaction]} context]
-    (.hmset transaction (job-key job-id) (prepare-to-save props))))
+    (.hmset transaction (job-key context job-id) (prepare-to-save props))))
 
 (defn assoc-fn-var
   [{:keys [fn-path] :as job}]
@@ -75,7 +75,7 @@
 (defn fetch-body
   [context job-id]
   (with-jedis* [{:keys [^Jedis jedis]} context]
-    (-> (into {} (.hgetAll jedis (job-key job-id)))
+    (-> (into {} (.hgetAll jedis (job-key context job-id)))
         (utils/update-keys keyword)
         (utils/update-vals edn/read-string)
         (assoc-fn-var))))

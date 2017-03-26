@@ -2,8 +2,9 @@
   (:require [farmhand.config :as cfg]
             [farmhand.redis :as r :refer [with-jedis*]]))
 
-(def pool (r/create-pool {}))
 (def test-prefix "farmhand-test:")
+(def pool (assoc (r/create-pool {})
+                 :prefix test-prefix))
 
 (defn cleanup-redis
   []
@@ -15,7 +16,6 @@
 
 (defn redis-test-fixture
   [f]
-  (with-redefs [r/key-prefix test-prefix]
-    (cleanup-redis)
-    (f)
-    (cleanup-redis)))
+  (cleanup-redis)
+  (f)
+  (cleanup-redis))

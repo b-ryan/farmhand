@@ -26,7 +26,7 @@
     (testing "completed job has been added to the completed registry"
       (is (=
            (with-jedis* [{:keys [jedis]} tu/pool]
-             (.zrange jedis (q/completed-key) 0 10))
+             (.zrange jedis (q/completed-key tu/pool) 0 10))
            #{job-id})))))
 
 (defn fail-fn [] (throw (Exception. "baz")))
@@ -37,7 +37,7 @@
     (testing "failed job has been added to the dead letter registry"
       (is (=
            (with-jedis* [{:keys [jedis]} tu/pool]
-             (.zrange jedis (q/dead-letter-key) 0 10))
+             (.zrange jedis (q/dead-letter-key tu/pool) 0 10))
            #{job-id})))))
 
 (deftest requeuing
