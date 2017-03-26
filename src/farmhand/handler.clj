@@ -1,6 +1,5 @@
 (ns farmhand.handler
   (:require [clojure.tools.logging :as log]
-            [farmhand.dead-letters :as dead-letters]
             [farmhand.jobs :as jobs]
             [farmhand.queue :as queue]
             [farmhand.retry :refer [wrap-retry]]
@@ -12,17 +11,17 @@
     :malformed-job
     (do
       (log/infof "The body of this job (%s) is malformed." job-id)
-      (dead-letters/fail context job-id :reason "Malformed: Job definition is invalid"))
+      (queue/fail context job-id :reason "Malformed: Job definition is invalid"))
 
     :no-implementation
     (do
       (log/info "Job cannot be processed - there is no implementation" job-id)
-      (dead-letters/fail context job-id :reason "Unknown job type"))
+      (queue/fail context job-id :reason "Unknown job type"))
 
     :exception
     (do
       (log/infof exception "While processing job (%s)" job-id)
-      (dead-letters/fail context job-id :reason (str exception)))))
+      (queue/fail context job-id :reason (str exception)))))
 
 (defn- handle-success
   [context job-id result]

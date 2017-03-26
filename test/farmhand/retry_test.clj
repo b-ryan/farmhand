@@ -1,7 +1,6 @@
 (ns farmhand.retry-test
   (:require [clojure.test :refer :all]
             [farmhand.core :as fc]
-            [farmhand.dead-letters :as d]
             [farmhand.handler :refer [default-handler]]
             [farmhand.jobs :as jobs]
             [farmhand.queue :as q]
@@ -23,7 +22,7 @@
         (is (= (.zrange jedis (s/schedule-key "default") 0 10) #{job-id})))
       (testing "job has not been added to either dead letters / completed"
         (is (= (.zrange jedis (q/completed-key) 0 10) #{}))
-        (is (= (.zrange jedis (d/dead-letter-key) 0 10) #{})))
+        (is (= (.zrange jedis (q/dead-letter-key) 0 10) #{})))
       (testing "job as removed from in progress"
         (is (= (.zrange jedis (q/in-flight-key) 0 10) #{}))
         (is (= (:status (jobs/fetch-body tu/pool job-id)) "scheduled"))))))
@@ -36,4 +35,4 @@
         (is (= (.zrange jedis (s/schedule-key "default") 0 10) #{})))
       (testing "job has been added to dead letters"
         (is (= (.zrange jedis (q/completed-key) 0 10) #{}))
-        (is (= (.zrange jedis (d/dead-letter-key) 0 10) #{job-id}))))))
+        (is (= (.zrange jedis (q/dead-letter-key) 0 10) #{job-id}))))))

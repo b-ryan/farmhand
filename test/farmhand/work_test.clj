@@ -1,7 +1,6 @@
 (ns farmhand.work-test
   (:require [clojure.test :refer :all]
             [farmhand.core :refer [enqueue]]
-            [farmhand.dead-letters :as dead-letters]
             [farmhand.handler :refer [default-handler]]
             [farmhand.queue :as q]
             [farmhand.redis :refer [with-jedis*]]
@@ -38,10 +37,10 @@
     (testing "failed job has been added to the dead letter registry"
       (is (=
            (with-jedis* [{:keys [jedis]} tu/pool]
-             (.zrange jedis (dead-letters/dead-letter-key) 0 10))
+             (.zrange jedis (q/dead-letter-key) 0 10))
            #{job-id})))))
 
 (deftest requeuing
   (let [job-id (enqueue tu/pool {:fn-var #'fail-fn :args []})]
     (work/run-once tu/pool [{:name "default"}] default-handler)
-    (dead-letters/requeue tu/pool job-id)))
+    (q/requeue tu/pool job-id)))

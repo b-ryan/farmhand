@@ -10,6 +10,7 @@
 (defn in-flight-key ^String [] (r/redis-key "inflight"))
 (defn completed-key ^String [] (r/redis-key "completed"))
 (defn queue-key ^String [queue-name] (r/redis-key "queue:" queue-name))
+(defn dead-letter-key ^String [] (r/redis-key "dead"))
 
 (defn push
   [context job-id queue-name]
@@ -84,3 +85,20 @@
                                        :completed-at (now-millis)})
     (registry/delete transaction (in-flight-key) job-id)
     (registry/add transaction (completed-key) job-id)))
+
+(defn requeue
+  [context job-id]
+  (with-jedis* [{:keys [jedis] :as context} context]
+    (let [{:keys [queue]} (jobs/fetch-body context job-id)]
+      (with-transaction* [{:keys [transaction] :as context} context]
+        (registry/add transaction (dead-letter-key) job-id)
+        (push context job-id queue)))))
+
+(defn fail
+  [context job-id & {:keys [reason]}]
+  (with-transaction* [{:keys [transaction] :as context} context]
+    (registry/delete transaction (in-flight-key) job-id)
+    (registry/add transaction (dead-letter-key) job-id)
+    (jobs/update-props context job-id {:status "failed"
+                                       :reason reason
+                                       :failed-at (now-millis)})))
