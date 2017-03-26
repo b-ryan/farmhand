@@ -3,12 +3,12 @@
            (redis.clients.jedis Jedis JedisPool JedisPoolConfig Protocol)))
 
 (defn create-pool
-  [{:keys [uri host port timeout-ms password database]
-    :or {host "localhost"
-         port Protocol/DEFAULT_PORT
-         timeout-ms Protocol/DEFAULT_TIMEOUT
-         database Protocol/DEFAULT_DATABASE}}]
-  {:jedis-pool
+  ([] (create-pool {}))
+  ([{:keys [uri host port timeout-ms password database]
+     :or {host "localhost"
+          port Protocol/DEFAULT_PORT
+          timeout-ms Protocol/DEFAULT_TIMEOUT
+          database Protocol/DEFAULT_DATABASE}}]
    (if uri
      (JedisPool. (JedisPoolConfig.) (URI. ^String uri))
      (JedisPool. (JedisPoolConfig.)
@@ -16,7 +16,7 @@
                  ^Integer port
                  ^Integer timeout-ms
                  ^String password
-                 ^Integer database))})
+                 ^Integer database))))
 
 (defn close-pool
   [{jedis :jedis-pool}]
@@ -44,7 +44,6 @@
          (.exec txn#)
          ret#))))
 
-(def default-prefix "farmhand:")
 (defn redis-key
-  [{:keys [prefix] :or {prefix default-prefix}} & args]
+  [{:keys [prefix]} & args]
   (apply str prefix args))

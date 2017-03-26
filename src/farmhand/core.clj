@@ -76,9 +76,10 @@
    (schedule/run-in context job in unit)))
 
 (defn start-server
-  [& [{:keys [num-workers queues redis pool handler]}]]
+  [& [{:keys [num-workers queues redis pool handler redis-prefix]}]]
   (let [queues (config/queues queues)
-        context (or pool (redis/create-pool (config/redis redis)))
+        context {:jedis-pool (or pool (redis/create-pool (config/redis redis)))
+                 :prefix (config/redis-prefix redis-prefix)}
         handler (or handler handler/default-handler)
         stop-chan (async/chan)
         threads (concat
@@ -115,8 +116,6 @@
     (defn slow-job [& args] (Thread/sleep 10000) :slow-result)
     (defn failing-job [& args] (throw (ex-info "foo" {:a :b}))))
 
-  (reset! context* (redis/create-pool {}))
-
   (enqueue @context* {:fn-var #'slow-job :args ["i am slow"]})
   (enqueue @context* {:fn-var #'failing-job :args ["fail"]})
   (enqueue @context* {:fn-var #'failing-job :args ["fail"]
@@ -126,5 +125,4 @@
 
   (schedule/run-in @context* {:fn-var #'slow-job :args ["i am slow"]} 1 :minutes)
 
-  (stop-server)
-  )
+  (stop-server))

@@ -3,8 +3,8 @@
             [farmhand.redis :as r :refer [with-jedis*]]))
 
 (def test-prefix "farmhand-test:")
-(def pool (assoc (r/create-pool {})
-                 :prefix test-prefix))
+(def pool {:jedis-pool (r/create-pool)
+           :prefix test-prefix})
 
 (defn cleanup-redis
   []

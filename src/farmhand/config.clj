@@ -54,3 +54,10 @@
   [override]
   (or override
       (merge* ["FARMHAND_QUEUES_EDN" edn/read-string] [:queues] default-queues)))
+
+(def ^:private default-redis-prefix "farmhand:")
+
+(defn redis-prefix
+  [override]
+  (or override
+      (merge* ["FARMHAND_REDIS_PREFIX"] [:redis :prefix] default-redis-prefix)))
