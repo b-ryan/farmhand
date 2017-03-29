@@ -2,7 +2,7 @@
   (:require [clojure.test :refer :all]
             [farmhand.jobs :as jobs]
             [farmhand.queue :as q]
-            [farmhand.redis :refer [with-transaction*]]
+            [farmhand.redis :refer [with-transaction]]
             [farmhand.registry :as registry]
             [farmhand.utils :refer [now-millis]]
             [farmhand.test-utils :as tu]))
@@ -21,7 +21,7 @@
 
 (defn save-jobs-fixture
   [f]
-  (with-transaction* [context tu/pool]
+  (with-transaction [context tu/pool]
     (save context job1 1234)
     (save context job2 3456)
     (save context job3 5678))

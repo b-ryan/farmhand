@@ -25,7 +25,7 @@
 (defn str-arr #^"[Ljava.lang.String;" [& args] (into-array args))
 (defn seq->str-arr #^"[Ljava.lang.String;" [items] (into-array items))
 
-(defmacro with-jedis*
+(defmacro with-jedis
   [[sym context] & body]
   `(if (:jedis ~context)
      (let [~sym ~context] ~@body)
@@ -33,11 +33,11 @@
        (let [~sym (assoc ~context :jedis cxn#)]
          ~@body))))
 
-(defmacro with-transaction*
+(defmacro with-transaction
   [[sym context] & body]
   `(if (:transaction ~context)
      (let [~sym ~context] ~@body)
-     (with-jedis* [ctx# ~context]
+     (with-jedis [ctx# ~context]
        (let [txn# (.multi ^Jedis (:jedis ctx#))
              ~sym (assoc ctx# :transaction txn#)
              ret# (do ~@body)]

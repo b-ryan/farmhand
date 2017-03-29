@@ -3,7 +3,7 @@
             [farmhand.core :refer [enqueue]]
             [farmhand.handler :refer [default-handler]]
             [farmhand.queue :as q]
-            [farmhand.redis :refer [with-jedis*]]
+            [farmhand.redis :refer [with-jedis]]
             [farmhand.test-utils :as tu]
             [farmhand.work :as work]))
 
@@ -25,7 +25,7 @@
       (is (= @last-call-args [:a 1 3.4 "abc"])))
     (testing "completed job has been added to the completed registry"
       (is (=
-           (with-jedis* [{:keys [jedis]} tu/pool]
+           (with-jedis [{:keys [jedis]} tu/pool]
              (.zrange jedis (q/completed-key tu/pool) 0 10))
            #{job-id})))))
 
@@ -36,7 +36,7 @@
     (work/run-once tu/pool [{:name "default"}] default-handler)
     (testing "failed job has been added to the dead letter registry"
       (is (=
-           (with-jedis* [{:keys [jedis]} tu/pool]
+           (with-jedis [{:keys [jedis]} tu/pool]
              (.zrange jedis (q/dead-letter-key tu/pool) 0 10))
            #{job-id})))))
 

@@ -2,7 +2,7 @@
   (:require [clojure.core.async :as async]
             [clojure.tools.logging :as log]
             [farmhand.jobs :as jobs]
-            [farmhand.redis :as r :refer [with-jedis* with-transaction*]]
+            [farmhand.redis :as r :refer [with-jedis with-transaction]]
             [farmhand.utils :refer [now-millis safe-loop]])
   (:import (redis.clients.jedis Jedis RedisPipeline Tuple)))
 
@@ -13,23 +13,23 @@
 
 (defn add
   [context ^String key ^String job-id]
-  (with-transaction* [{:keys [^RedisPipeline transaction]} context]
+  (with-transaction [{:keys [^RedisPipeline transaction]} context]
     (.sadd transaction (all-registries-key context) (r/str-arr key))
     (.zadd transaction key (double (expiration)) job-id)))
 
 (defn delete
   [context ^String key ^String job-id]
-  (with-transaction* [{:keys [^RedisPipeline transaction]} context]
+  (with-transaction [{:keys [^RedisPipeline transaction]} context]
     (.zrem transaction key (r/str-arr job-id))))
 
 (defn- num-items
   [context ^String key]
-  (with-jedis* [{:keys [^Jedis jedis]} context]
+  (with-jedis [{:keys [^Jedis jedis]} context]
     (.zcard jedis key)))
 
 (defn- all-registries
   [context]
-  (with-jedis* [{:keys [^Jedis jedis]} context]
+  (with-jedis [{:keys [^Jedis jedis]} context]
     (.smembers jedis (all-registries-key context))))
 
 (def ^:private default-size 25)
@@ -59,7 +59,7 @@
 
 (defn page
   [context key {:keys [page] :as options}]
-  (with-jedis* [{:keys [jedis] :as context} context]
+  (with-jedis [{:keys [jedis] :as context} context]
     (let [fetcher #(update-in % [:job] (partial jobs/fetch-body context))
           items (->> (page-raw jedis key options)
                      (map fetcher))
@@ -72,7 +72,7 @@
 (defn cleanup
   [context]
   (let [now (now-millis)]
-    (with-jedis* [{:keys [^Jedis jedis]} context]
+    (with-jedis [{:keys [^Jedis jedis]} context]
       (doseq [^String key (all-registries context)]
         (let [num-removed (.zremrangeByScore jedis key (double 0) (double now))]
           (when (> num-removed 0)

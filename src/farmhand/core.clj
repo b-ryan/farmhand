@@ -4,7 +4,7 @@
             [farmhand.handler :as handler]
             [farmhand.jobs :as jobs]
             [farmhand.queue :as queue]
-            [farmhand.redis :as redis :refer [with-transaction*]]
+            [farmhand.redis :as redis :refer [with-transaction]]
             [farmhand.registry :as registry]
             [farmhand.schedule :as schedule]
             [farmhand.work :as work])
@@ -36,7 +36,7 @@
    (enqueue @context* job))
   ([context job]
    (let [{:keys [job-id queue] :as job} (jobs/normalize job)]
-     (with-transaction* [context context]
+     (with-transaction [context context]
        (jobs/save-new context job)
        (queue/push context job-id queue))
      job-id)))

@@ -1,6 +1,6 @@
 (ns farmhand.retry
   (:require [farmhand.jobs :as jobs]
-            [farmhand.redis :refer [with-transaction*]]
+            [farmhand.redis :refer [with-transaction]]
             [farmhand.queue :as queue]
             [farmhand.registry :as registry]
             [farmhand.schedule :as schedule]))
@@ -37,7 +37,7 @@
 (defn- handle-retry
   [{{:keys [job-id queue] :as job} :job context :context} response]
   (let [{:keys [delay-time delay-unit] :as retry} (update-retry job)]
-    (with-transaction* [context context]
+    (with-transaction [context context]
       (jobs/update-props context job-id {:retry retry})
       (if retry
         (let [delay-ts (schedule/from-now delay-time delay-unit)]

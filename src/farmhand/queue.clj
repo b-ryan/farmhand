@@ -1,7 +1,7 @@
 (ns farmhand.queue
   (:require [clojure.java.io :as io]
             [farmhand.jobs :as jobs]
-            [farmhand.redis :as r :refer [with-jedis* with-transaction*]]
+            [farmhand.redis :as r :refer [with-jedis with-transaction]]
             [farmhand.registry :as registry]
             [farmhand.utils :refer [now-millis]])
   (:import (redis.clients.jedis Jedis Transaction)))
@@ -14,7 +14,7 @@
 
 (defn push
   [context job-id queue-name]
-  (with-transaction* [{:keys [^Transaction transaction] :as context} context]
+  (with-transaction [{:keys [^Transaction transaction] :as context} context]
     (.sadd transaction (all-queues-key context) (r/str-arr queue-name))
     (.lpush transaction (queue-key context queue-name) (r/str-arr job-id))
     (jobs/update-props context job-id {:status "queued"})))
@@ -22,7 +22,7 @@
 (defn describe-queues
   "Returns a list of all queues and their current number of items."
   [context]
-  (with-jedis* [{:keys [^Jedis jedis]} context]
+  (with-jedis [{:keys [^Jedis jedis]} context]
     (doall (map (fn [^String queue-name]
                   {:name queue-name
                    :size (.llen jedis (queue-key context queue-name))})
@@ -31,7 +31,7 @@
 (defn purge
   "Deletes all items from a queue"
   [context queue-name]
-  (with-jedis* [{:keys [^Jedis jedis]} context]
+  (with-jedis [{:keys [^Jedis jedis]} context]
     (.del jedis (queue-key context queue-name))))
 
 (defn queue-order
@@ -74,12 +74,12 @@
         now-str (str (now-millis))
         params (r/seq->str-arr (conj keys (in-flight-key context) now-str))
         num-keys ^Integer (inc (count keys))]
-    (with-jedis* [{:keys [^Jedis jedis]} context]
+    (with-jedis [{:keys [^Jedis jedis]} context]
       (.eval jedis dequeue-lua num-keys params))))
 
 (defn complete
   [context job-id & {:keys [result]}]
-  (with-transaction* [context context]
+  (with-transaction [context context]
     (jobs/update-props context job-id {:status "complete"
                                        :result result
                                        :completed-at (now-millis)})
@@ -88,15 +88,15 @@
 
 (defn requeue
   [context job-id]
-  (with-jedis* [{:keys [jedis] :as context} context]
+  (with-jedis [{:keys [jedis] :as context} context]
     (let [{:keys [queue]} (jobs/fetch-body context job-id)]
-      (with-transaction* [context context]
+      (with-transaction [context context]
         (registry/add context (dead-letter-key context) job-id)
         (push context job-id queue)))))
 
 (defn fail
   [context job-id & {:keys [reason]}]
-  (with-transaction* [context context]
+  (with-transaction [context context]
     (registry/delete context (in-flight-key context) job-id)
     (registry/add context (dead-letter-key context) job-id)
     (jobs/update-props context job-id {:status "failed"

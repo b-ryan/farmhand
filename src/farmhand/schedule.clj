@@ -3,7 +3,7 @@
             [clojure.tools.logging :as log]
             [farmhand.jobs :as jobs]
             [farmhand.queue :as q]
-            [farmhand.redis :as r :refer [with-jedis* with-transaction*]]
+            [farmhand.redis :as r :refer [with-jedis with-transaction]]
             [farmhand.utils :refer [now-millis safe-loop]])
   (:import (redis.clients.jedis Jedis Transaction)))
 
@@ -11,7 +11,7 @@
 
 (defn run-at*
   [context job-id queue-name at]
-  (with-transaction* [{:keys [^Transaction transaction] :as context} context]
+  (with-transaction [{:keys [^Transaction transaction] :as context} context]
     (.zadd transaction (schedule-key context queue-name) (double at) ^String job-id)
     (jobs/update-props context job-id {:status "scheduled"})))
 
@@ -20,7 +20,7 @@
   farmhand.core/run-at for more details."
   [context job at]
   (let [{job-id :job-id queue-name :queue :as normalized} (jobs/normalize job)]
-    (with-transaction* [context context]
+    (with-transaction [context context]
       (jobs/save-new context normalized)
       (run-at* context job-id queue-name at))
     job-id))
@@ -54,14 +54,14 @@
 (defn pull-and-enqueue
   [context queues]
   (let [now-str (str (now-millis))]
-    (with-jedis* [{:keys [^Jedis jedis] :as context} context]
+    (with-jedis [{:keys [^Jedis jedis] :as context} context]
       (doseq [{queue-name :name} queues
               :let [sch-key (schedule-key context queue-name)]]
         (loop []
           (.watch jedis (r/str-arr sch-key))
           (if-let [job-id (fetch-ready-id context queue-name now-str)]
             (do
-              (with-transaction* [{:keys [^Transaction transaction] :as context} context]
+              (with-transaction [{:keys [^Transaction transaction] :as context} context]
                 (.zrem transaction sch-key (r/str-arr job-id))
                 (q/push context job-id queue-name))
               (recur))
