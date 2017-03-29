@@ -1,5 +1,24 @@
 # Change Log
 
+## 0.8.0-SNAPSHOT
+
+FEATURES
+
+- Customizable Redis prefix. Read about the motivation for this feature
+  [here](https://github.com/b-ryan/farmhand/issues/3).
+
+BREAKING
+
+- Completely refactored Jedis handling code. Some background info is in the
+  commit where the change was made:
+  [here](https://github.com/b-ryan/farmhand/commit/3abc96e6a078332df023ab8b1fa9d49c9b50af04)
+- As a result of the above change, many of the functions (except in `core`)
+  have had breaking changes. If this library were actually being used by anyone
+  yet I might not have made such a drastic change :) But currently I can get
+  away with it.
+- `farmhand.dead-letters` namespace is gone. The two functions in it are now in
+  `farmhand.queue`.
+
 ## 0.7.1
 
 FEATURES
