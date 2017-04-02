@@ -7,6 +7,10 @@ FEATURES
 - Customizable Redis prefix. Read about the motivation for this feature
   [here](https://github.com/b-ryan/farmhand/issues/3).
 
+FIXES
+
+- Exceptions logged when job is being retried. Fixes #5.
+
 BREAKING
 
 - Completely refactored Jedis handling code. Some background info is in the
