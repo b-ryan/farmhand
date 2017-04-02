@@ -119,9 +119,9 @@
   (enqueue @context* {:fn-var #'slow-job :args ["i am slow"]})
   (enqueue @context* {:fn-var #'failing-job :args ["fail"]})
   (enqueue @context* {:fn-var #'failing-job :args ["fail"]
-                   :retry {:strategy "backoff"
-                           :delay-unit :minutes
-                           :max-attempts 2}})
+                      :retry {:strategy "backoff"
+                              :delay-unit :minutes
+                              :max-attempts 2}})
 
   (schedule/run-in @context* {:fn-var #'slow-job :args ["i am slow"]} 1 :minutes)
 

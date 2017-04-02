@@ -5,27 +5,11 @@
             [farmhand.retry :refer [wrap-retry]]
             [farmhand.utils :refer [fatal?]]))
 
-(defn- handle-failure
-  [context job-id {:keys [reason exception]}]
-  (case reason
-    :malformed-job
-    (do
-      (log/infof "The body of this job (%s) is malformed." job-id)
-      (queue/fail context job-id :reason "Malformed: Job definition is invalid"))
-
-    :no-implementation
-    (do
-      (log/info "Job cannot be processed - there is no implementation" job-id)
-      (queue/fail context job-id :reason "Unknown job type"))
-
-    :exception
-    (do
-      (log/infof exception "While processing job (%s)" job-id)
-      (queue/fail context job-id :reason (str exception)))))
-
-(defn- handle-success
-  [context job-id result]
-  (queue/complete context job-id :result result))
+(defn- fail-result->str
+  [{:keys [reason exception]}]
+  ({:malformed-job "Malformed: Job definition is invalid"
+    :no-implementation "Function cannot be found"
+    :exception (str exception)} reason))
 
 (defn- fetch-job
   [{:keys [job-id context] :as request}]
@@ -43,8 +27,8 @@
   [{:keys [job-id context]} {:keys [status result handled?] :as response}]
   (when-not handled?
     (case status
-      :failure (handle-failure context job-id result)
-      :success (handle-success context job-id result)))
+      :failure (queue/fail context job-id :reason (fail-result->str result))
+      :success (queue/complete context job-id :result result)))
   response)
 
 (defn execute-job
@@ -67,11 +51,12 @@
   function to define whether an exception can be handled. If an exception is
   considered fatal, then the exception is rethrown."
   [handler]
-  (fn exception-handler [request]
+  (fn exception-handler [{:keys [job-id] :as request}]
     (try
       (handler request)
       (catch Throwable e
         (when (fatal? e) (throw e))
+        (log/infof e "Job threw an exception. job-id: (%s)" job-id)
         {:status :failure
          :result {:reason :exception :exception e}}))))
 
