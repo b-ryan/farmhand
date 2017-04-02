@@ -21,31 +21,31 @@
 (defn work-fn [])
 
 (deftest run-at-successful
-  (let [job-id (run-at tu/pool {:fn-var #'work-fn} earlier-than-now)]
+  (let [job-id (run-at tu/context {:fn-var #'work-fn} earlier-than-now)]
     (is (seq job-id))
-    (is (nil? (queue/dequeue tu/pool ["default"])))
-    (is (= (:status (jobs/fetch-body tu/pool job-id)) "scheduled"))
-    (schedule/pull-and-enqueue tu/pool [{:name "default"}])
-    (is (= (queue/dequeue tu/pool ["default"]) job-id))))
+    (is (nil? (queue/dequeue tu/context ["default"])))
+    (is (= (:status (jobs/fetch-body tu/context job-id)) "scheduled"))
+    (schedule/pull-and-enqueue tu/context [{:name "default"}])
+    (is (= (queue/dequeue tu/context ["default"]) job-id))))
 
 (deftest run-at-job-in-future
-  (let [job-id (run-at tu/pool {:fn-var #'work-fn} later-than-now)]
+  (let [job-id (run-at tu/context {:fn-var #'work-fn} later-than-now)]
     (is (seq job-id))
-    (is (nil? (queue/dequeue tu/pool ["default"])))
-    (schedule/pull-and-enqueue tu/pool [{:name "default"}])
-    (is (nil? (queue/dequeue tu/pool ["default"])))))
+    (is (nil? (queue/dequeue tu/context ["default"])))
+    (schedule/pull-and-enqueue tu/context [{:name "default"}])
+    (is (nil? (queue/dequeue tu/context ["default"])))))
 
 (deftest run-in-successful
-  (let [job-id (run-in tu/pool {:fn-var #'work-fn} 10 :seconds)]
+  (let [job-id (run-in tu/context {:fn-var #'work-fn} 10 :seconds)]
     (is (seq job-id))
-    (is (nil? (queue/dequeue tu/pool ["default"])))
+    (is (nil? (queue/dequeue tu/context ["default"])))
     (with-redefs [utils/now-millis (constantly (+ fake-now (* 1000 20)))]
-      (schedule/pull-and-enqueue tu/pool [{:name "default"}]))
-    (is (= (queue/dequeue tu/pool ["default"]) job-id))))
+      (schedule/pull-and-enqueue tu/context [{:name "default"}]))
+    (is (= (queue/dequeue tu/context ["default"]) job-id))))
 
 (deftest run-in-not-ready-yet
-  (let [job-id (run-in tu/pool {:fn-var #'work-fn} 10 :seconds)]
+  (let [job-id (run-in tu/context {:fn-var #'work-fn} 10 :seconds)]
     (is (seq job-id))
-    (is (nil? (queue/dequeue tu/pool ["default"])))
-    (schedule/pull-and-enqueue tu/pool [{:name "default"}])
-    (is (nil? (queue/dequeue tu/pool ["default"])))))
+    (is (nil? (queue/dequeue tu/context ["default"])))
+    (schedule/pull-and-enqueue tu/context [{:name "default"}])
+    (is (nil? (queue/dequeue tu/context ["default"])))))

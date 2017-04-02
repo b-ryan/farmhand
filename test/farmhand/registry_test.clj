@@ -21,7 +21,7 @@
 
 (defn save-jobs-fixture
   [f]
-  (with-transaction [context tu/pool]
+  (with-transaction [context tu/context]
     (save context job1 1234)
     (save context job2 3456)
     (save context job3 5678))
@@ -30,7 +30,7 @@
 (use-fixtures :each tu/redis-test-fixture save-jobs-fixture)
 
 (deftest sorts-items-by-oldest-first
-  (is (= (registry/page tu/pool (q/completed-key tu/pool) {})
+  (is (= (registry/page tu/context (q/completed-key tu/context) {})
          {:items [{:expiration 1234 :job job1}
                   {:expiration 3456 :job job2}
                   {:expiration 5678 :job job3}]
@@ -38,7 +38,7 @@
           :next-page nil})))
 
 (deftest sorts-items-by-newest-first
-  (is (= (registry/page tu/pool (q/completed-key tu/pool) {:newest-first? true})
+  (is (= (registry/page tu/context (q/completed-key tu/context) {:newest-first? true})
          {:items [{:expiration 5678 :job job3}
                   {:expiration 3456 :job job2}
                   {:expiration 1234 :job job1}]
@@ -46,15 +46,15 @@
           :next-page nil})))
 
 (deftest pages-are-handled
-  (is (= (registry/page tu/pool (q/completed-key tu/pool) {:page 1 :size 1})
+  (is (= (registry/page tu/context (q/completed-key tu/context) {:page 1 :size 1})
          {:items [{:expiration 3456 :job job2}]
           :prev-page 0
           :next-page 2})))
 
 (deftest cleanup-removes-older-jobs
   (with-redefs [now-millis (constantly 4000)]
-    (registry/cleanup tu/pool))
-  (is (= (registry/page tu/pool (q/completed-key tu/pool) {})
+    (registry/cleanup tu/context))
+  (is (= (registry/page tu/context (q/completed-key tu/context) {})
          {:items [{:expiration 5678 :job job3}]
           :prev-page nil
           :next-page nil})))

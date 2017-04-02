@@ -19,28 +19,28 @@
 (defn work-fn [& args] (reset! last-call-args args))
 
 (deftest queue-and-run
-  (let [job-id (enqueue tu/pool {:fn-var #'work-fn :args [:a 1 3.4 "abc"]})]
+  (let [job-id (enqueue tu/context {:fn-var #'work-fn :args [:a 1 3.4 "abc"]})]
     (testing "running the main work function will pull and execute the job"
-      (work/run-once tu/pool [{:name "default"}] default-handler)
+      (work/run-once tu/context [{:name "default"}] default-handler)
       (is (= @last-call-args [:a 1 3.4 "abc"])))
     (testing "completed job has been added to the completed registry"
       (is (=
-           (with-jedis [{:keys [jedis]} tu/pool]
-             (.zrange jedis (q/completed-key tu/pool) 0 10))
+           (with-jedis [{:keys [jedis]} tu/context]
+             (.zrange jedis (q/completed-key tu/context) 0 10))
            #{job-id})))))
 
 (defn fail-fn [] (throw (Exception. "baz")))
 
 (deftest dead-letters
-  (let [job-id (enqueue tu/pool {:fn-var #'fail-fn :args []})]
-    (work/run-once tu/pool [{:name "default"}] default-handler)
+  (let [job-id (enqueue tu/context {:fn-var #'fail-fn :args []})]
+    (work/run-once tu/context [{:name "default"}] default-handler)
     (testing "failed job has been added to the dead letter registry"
       (is (=
-           (with-jedis [{:keys [jedis]} tu/pool]
-             (.zrange jedis (q/dead-letter-key tu/pool) 0 10))
+           (with-jedis [{:keys [jedis]} tu/context]
+             (.zrange jedis (q/dead-letter-key tu/context) 0 10))
            #{job-id})))))
 
 (deftest requeuing
-  (let [job-id (enqueue tu/pool {:fn-var #'fail-fn :args []})]
-    (work/run-once tu/pool [{:name "default"}] default-handler)
-    (q/requeue tu/pool job-id)))
+  (let [job-id (enqueue tu/context {:fn-var #'fail-fn :args []})]
+    (work/run-once tu/context [{:name "default"}] default-handler)
+    (q/requeue tu/context job-id)))
