@@ -76,10 +76,10 @@
    (schedule/run-in context job in unit)))
 
 (defn start-server
-  [& [{:keys [num-workers queues redis pool handler redis-prefix]}]]
+  [& [{:keys [num-workers queues redis pool handler prefix]}]]
   (let [queues (config/queues queues)
         context {:jedis-pool (or pool (redis/create-pool (config/redis redis)))
-                 :prefix (config/redis-prefix redis-prefix)}
+                 :prefix (config/prefix prefix)}
         handler (or handler handler/default-handler)
         stop-chan (async/chan)
         threads (concat

@@ -2,7 +2,6 @@
   (:require [clojure.edn :as edn]
             [clojure.string :as string]
             [clojure.java.io :as io]
-            [farmhand.redis :as r]
             [farmhand.utils :as utils]))
 
 (def ^:private all-env-vars (delay (System/getenv)))
@@ -11,8 +10,6 @@
   (delay (some-> (io/resource "farmhand/config.edn")
                  (slurp)
                  (edn/read-string))))
-
-
 
 (def ^:private parsers {:int utils/parse-long})
 
@@ -55,9 +52,9 @@
   (or override
       (merge* ["FARMHAND_QUEUES_EDN" edn/read-string] [:queues] default-queues)))
 
-(def ^:private default-redis-prefix "farmhand:")
+(def default-prefix "farmhand:")
 
-(defn redis-prefix
+(defn prefix
   [override]
   (or override
-      (merge* ["FARMHAND_REDIS_PREFIX"] [:redis :prefix] default-redis-prefix)))
+      (merge* ["FARMHAND_REDIS_PREFIX"] [:redis :prefix] default-prefix)))

@@ -1,4 +1,5 @@
 (ns farmhand.redis
+  (:require [farmhand.config :refer [default-prefix]])
   (:import (java.net URI)
            (redis.clients.jedis Jedis JedisPool JedisPoolConfig Protocol)))
 
@@ -45,5 +46,5 @@
          ret#))))
 
 (defn redis-key
-  [{:keys [prefix]} & args]
+  [{:keys [prefix] :or {prefix default-prefix}} & args]
   (apply str prefix args))
