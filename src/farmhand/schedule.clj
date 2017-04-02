@@ -52,7 +52,7 @@
       (first)))
 
 (defn pull-and-enqueue
-  [context queues]
+  [{:keys [queues] :as context}]
   (let [now-str (str (now-millis))]
     (with-jedis [{:keys [^Jedis jedis] :as context} context]
       (doseq [{queue-name :name} queues
@@ -70,11 +70,11 @@
 (defn- sleep-time [] (int (* (rand 15) 1000)))
 
 (defn schedule-thread
-  [context stop-chan queues]
+  [context stop-chan]
   (async/thread
     (log/info "in schedule thread")
     (safe-loop
       (async/alt!!
         stop-chan :exit-loop
-        (async/timeout (sleep-time)) (pull-and-enqueue context queues)))
+        (async/timeout (sleep-time)) (pull-and-enqueue context)))
     (log/info "exiting schedule thread")))

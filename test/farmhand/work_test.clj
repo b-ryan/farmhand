@@ -21,7 +21,7 @@
 (deftest queue-and-run
   (let [job-id (enqueue tu/context {:fn-var #'work-fn :args [:a 1 3.4 "abc"]})]
     (testing "running the main work function will pull and execute the job"
-      (work/run-once tu/context [{:name "default"}] default-handler)
+      (work/run-once tu/context)
       (is (= @last-call-args [:a 1 3.4 "abc"])))
     (testing "completed job has been added to the completed registry"
       (is (=
@@ -33,7 +33,7 @@
 
 (deftest dead-letters
   (let [job-id (enqueue tu/context {:fn-var #'fail-fn :args []})]
-    (work/run-once tu/context [{:name "default"}] default-handler)
+    (work/run-once tu/context)
     (testing "failed job has been added to the dead letter registry"
       (is (=
            (with-jedis [{:keys [jedis]} tu/context]
@@ -42,5 +42,5 @@
 
 (deftest requeuing
   (let [job-id (enqueue tu/context {:fn-var #'fail-fn :args []})]
-    (work/run-once tu/context [{:name "default"}] default-handler)
+    (work/run-once tu/context)
     (q/requeue tu/context job-id)))

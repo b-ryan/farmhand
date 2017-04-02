@@ -25,14 +25,14 @@
     (is (seq job-id))
     (is (nil? (queue/dequeue tu/context ["default"])))
     (is (= (:status (jobs/fetch-body tu/context job-id)) "scheduled"))
-    (schedule/pull-and-enqueue tu/context [{:name "default"}])
+    (schedule/pull-and-enqueue tu/context)
     (is (= (queue/dequeue tu/context ["default"]) job-id))))
 
 (deftest run-at-job-in-future
   (let [job-id (run-at tu/context {:fn-var #'work-fn} later-than-now)]
     (is (seq job-id))
     (is (nil? (queue/dequeue tu/context ["default"])))
-    (schedule/pull-and-enqueue tu/context [{:name "default"}])
+    (schedule/pull-and-enqueue tu/context)
     (is (nil? (queue/dequeue tu/context ["default"])))))
 
 (deftest run-in-successful
@@ -40,12 +40,12 @@
     (is (seq job-id))
     (is (nil? (queue/dequeue tu/context ["default"])))
     (with-redefs [utils/now-millis (constantly (+ fake-now (* 1000 20)))]
-      (schedule/pull-and-enqueue tu/context [{:name "default"}]))
+      (schedule/pull-and-enqueue tu/context))
     (is (= (queue/dequeue tu/context ["default"]) job-id))))
 
 (deftest run-in-not-ready-yet
   (let [job-id (run-in tu/context {:fn-var #'work-fn} 10 :seconds)]
     (is (seq job-id))
     (is (nil? (queue/dequeue tu/context ["default"])))
-    (schedule/pull-and-enqueue tu/context [{:name "default"}])
+    (schedule/pull-and-enqueue tu/context)
     (is (nil? (queue/dequeue tu/context ["default"])))))

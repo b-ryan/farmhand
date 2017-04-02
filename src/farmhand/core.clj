@@ -12,7 +12,7 @@
 
 (defonce
   ^{:doc "An atom that contains the most recent context created by
-         start-server.
+         create-context.
 
          For many applications, this atom will do the trick when you want to
          spin up a single server in your application and have easy access to
@@ -75,25 +75,31 @@
   ([context job in unit]
    (schedule/run-in context job in unit)))
 
+(defn create-context
+  ([] (create-context {}))
+  ([{:keys [handler queues redis pool prefix]}]
+   (let [context {:queues (config/queues queues)
+                  :jedis-pool (or pool (redis/create-pool (config/redis redis)))
+                  :prefix (config/prefix prefix)
+                  :handler (or handler handler/default-handler)}]
+     (reset! context* context)
+     context)))
+
 (defn start-server
-  [& [{:keys [num-workers queues redis pool handler prefix]}]]
-  (let [queues (config/queues queues)
-        context {:jedis-pool (or pool (redis/create-pool (config/redis redis)))
-                 :prefix (config/prefix prefix)}
-        handler (or handler handler/default-handler)
-        stop-chan (async/chan)
-        threads (concat
-                  (for [_ (range (config/num-workers num-workers))]
-                    (work/work-thread context stop-chan queues handler))
-                  [(schedule/schedule-thread context stop-chan queues)
-                   (registry/cleanup-thread context stop-chan)])
-        server {:context context
-                :stop-chan stop-chan
-                :threads (doall threads)}]
-    (dosync
-      (reset! context* context)
-      (reset! server* server))
-    server))
+  ([] (start-server {}))
+  ([{:keys [context num-workers] :as opts}]
+   (let [context (or context (create-context opts))
+         stop-chan (async/chan)
+         threads (concat
+                   (for [_ (range (config/num-workers num-workers))]
+                     (work/work-thread context stop-chan))
+                   [(schedule/schedule-thread context stop-chan)
+                    (registry/cleanup-thread context stop-chan)])
+         server {:context context
+                 :stop-chan stop-chan
+                 :threads (doall threads)}]
+     (reset! server* server)
+     server)))
 
 (defn stop-server
   "Stops a running Farmhand server. If no server is given, this function will

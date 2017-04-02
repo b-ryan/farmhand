@@ -7,7 +7,7 @@
 (def ^:private no-jobs-sleep-ms 50)
 
 (defn run-once
-  [context queues handler]
+  [{:keys [queues handler] :as context}]
   (if-let [job-id (->> (queue/queue-order queues)
                        (queue/dequeue context))]
     (handler {:job-id job-id :context context})
@@ -22,12 +22,12 @@
     (Thread/sleep no-jobs-sleep-ms)))
 
 (defn work-thread
-  [context stop-chan queues handler]
+  [context stop-chan]
   (async/thread
-    (log/info "in main loop" queues)
+    (log/info "in main loop")
     (safe-loop
       (async/alt!!
         stop-chan :exit-loop
-        :default (-> (run-once context queues handler)
+        :default (-> (run-once context)
                      (sleep-if-no-jobs))))
     (log/info "exiting main loop")))

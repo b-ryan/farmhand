@@ -16,7 +16,7 @@
 
 (deftest failures-handled-with-retry
   (let [job-id (fc/enqueue tu/context {:fn-var #'fail :retry {:strategy "backoff"}})]
-    (work/run-once tu/context [{:name "default"}] default-handler)
+    (work/run-once tu/context)
     (with-jedis [{:keys [jedis]} tu/context]
       (testing "job was scheduled to be run again"
         (is (= (.zrange jedis (s/schedule-key tu/context "default") 0 10) #{job-id})))
@@ -29,7 +29,7 @@
 
 (deftest max-attempts-reached
   (let [job-id (fc/enqueue tu/context {:fn-var #'fail :retry {:strategy "backoff" :max-attempts 1}})]
-    (work/run-once tu/context [{:name "default"}] default-handler)
+    (work/run-once tu/context)
     (with-jedis [{:keys [jedis]} tu/context]
       (testing "job was scheduled to be run again"
         (is (= (.zrange jedis (s/schedule-key tu/context "default") 0 10) #{})))

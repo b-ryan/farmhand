@@ -1,10 +1,13 @@
 (ns farmhand.test-utils
   (:require [farmhand.config :as cfg]
+            [farmhand.handler :refer [default-handler]]
             [farmhand.redis :as r :refer [with-jedis]]))
 
 (def test-prefix "farmhand-test:")
 (def context {:jedis-pool (r/create-pool)
-              :prefix test-prefix})
+              :prefix test-prefix
+              :queues [{:name "default"}]
+              :handler default-handler})
 
 (defn cleanup-redis
   []
