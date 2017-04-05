@@ -5,11 +5,12 @@
 FEATURES
 
 - Customizable Redis prefix. Read about the motivation for this feature
-  [here](https://github.com/b-ryan/farmhand/issues/3). Closes #3.
+  [here](https://github.com/b-ryan/farmhand/issues/3).
 
 FIXES
 
-- Exceptions logged when job is being retried. Fixes #5.
+- Exceptions logged when job is being retried. Fixes
+  [this](https://github.com/b-ryan/farmhand/issues/5) issue.
 
 BREAKING
 
