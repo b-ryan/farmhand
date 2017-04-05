@@ -1,11 +1,11 @@
 # Change Log
 
-## 0.8.0-SNAPSHOT
+## 0.8.0
 
 FEATURES
 
 - Customizable Redis prefix. Read about the motivation for this feature
-  [here](https://github.com/b-ryan/farmhand/issues/3).
+  [here](https://github.com/b-ryan/farmhand/issues/3). Closes #3.
 
 FIXES
 
