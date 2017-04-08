@@ -57,4 +57,7 @@
   (is (= (registry/page tu/context (q/completed-key tu/context) {})
          {:items [{:expiration 5678 :job job3}]
           :prev-page nil
-          :next-page nil})))
+          :next-page nil}))
+  (is (nil? (jobs/fetch-body tu/context (:job-id job1))))
+  (is (nil? (jobs/fetch-body tu/context (:job-id job2))))
+  (is (= (jobs/fetch-body tu/context (:job-id job3)) job3)))

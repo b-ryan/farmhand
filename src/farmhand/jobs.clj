@@ -7,7 +7,6 @@
            (java.util UUID)
            (redis.clients.jedis Jedis RedisPipeline)))
 
-(def ttl-secs (* 60 60 24 60)) ;; 60 days
 (def default-queue "default")
 
 (defn job-key ^String [c job-id] (r/redis-key c "job:" job-id))
@@ -47,10 +46,9 @@
   [context {job-id :job-id :as job}]
   ;; The typehint using RedisPipeline here is because using Transaction creates
   ;; an ambiguous typehint
+  ;; Transaction is used so it can be nested within other transactions
   (with-transaction [{:keys [^RedisPipeline transaction]} context]
-    (let [key (job-key context job-id)]
-      (.hmset transaction key (prepare-to-save job))
-      (.expire transaction key ttl-secs))))
+    (.hmset transaction (job-key context job-id) (prepare-to-save job))))
 
 (defn update-props
   [context job-id props]
@@ -72,10 +70,18 @@
     (catch FileNotFoundException e))
   (assoc job :fn-var (some-> fn-path (symbol) (resolve))))
 
+(defn- m-seq [m] (if (empty? m) nil m))
+
 (defn fetch-body
   [context job-id]
   (with-jedis [{:keys [^Jedis jedis]} context]
-    (-> (into {} (.hgetAll jedis (job-key context job-id)))
-        (utils/update-keys keyword)
-        (utils/update-vals edn/read-string)
-        (assoc-fn-var))))
+    (some-> (into {} (.hgetAll jedis (job-key context job-id)))
+            (m-seq)
+            (utils/update-keys keyword)
+            (utils/update-vals edn/read-string)
+            (assoc-fn-var))))
+
+(defn delete
+  [context job-id]
+  (with-transaction [{:keys [^RedisPipeline transaction]} context]
+    (.del transaction (job-key context job-id))))

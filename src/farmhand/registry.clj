@@ -4,18 +4,18 @@
             [farmhand.jobs :as jobs]
             [farmhand.redis :as r :refer [with-jedis with-transaction]]
             [farmhand.utils :refer [now-millis safe-loop]])
-  (:import (redis.clients.jedis Jedis RedisPipeline Tuple)))
+  (:import (redis.clients.jedis Jedis RedisPipeline Transaction Tuple)))
 
-(def ttl-ms (* 1000 jobs/ttl-secs))
-
-(defn expiration [] (+ (now-millis) ttl-ms))
 (defn all-registries-key ^String [c] (r/redis-key c "registries"))
 
+(def ^:private default-ttl-ms (* 1000 60 60 24 60)) ;; 60 days
+(defn- expiration [ttl-ms] (+ (now-millis) (or ttl-ms default-ttl-ms)))
+
 (defn add
-  [context ^String key ^String job-id]
+  [context ^String key ^String job-id & {:keys [ttl-ms]}]
   (with-transaction [{:keys [^RedisPipeline transaction]} context]
     (.sadd transaction (all-registries-key context) (r/str-arr key))
-    (.zadd transaction key (double (expiration)) job-id)))
+    (.zadd transaction key (double (expiration ttl-ms)) job-id)))
 
 (defn delete
   [context ^String key ^String job-id]
@@ -69,14 +69,35 @@
        :prev-page (when (> page 0) (dec page))
        :next-page (when (< page last-page) (inc page))})))
 
+(defn- fetch-ready-id
+  "Fetches the next job-id that is ready to be popped off the registry."
+  [^Jedis jedis ^String reg-key ^String now]
+  (-> (.zrangeByScore jedis reg-key "-inf" now (int 0) (int 1))
+      (first)))
+
+(defn- remove-from-registry
+  [context ^String reg-key ^String job-id]
+  (with-transaction [{:keys [^Transaction transaction] :as context} context]
+    ;; TODO do something different with the job depending on the
+    ;; registry type
+    (jobs/delete context job-id)
+    (.zrem transaction reg-key (r/str-arr job-id))))
+
 (defn cleanup
   [context]
-  (let [now (now-millis)]
+  (let [now-str (str (now-millis))]
     (with-jedis [{:keys [^Jedis jedis]} context]
-      (doseq [^String key (all-registries context)]
-        (let [num-removed (.zremrangeByScore jedis key (double 0) (double now))]
-          (when (> num-removed 0)
-            (log/debugf "Removed %d items from %s" num-removed key)))))))
+      (doseq [reg-key (all-registries context)]
+        (loop [num-removed 0]
+          (.watch jedis (r/str-arr reg-key))
+          (if-let [job-id (fetch-ready-id jedis reg-key now-str)]
+            (do
+              (remove-from-registry context reg-key job-id)
+              (recur (inc num-removed)))
+            (do
+              (.unwatch jedis)
+              (when (> num-removed 0)
+                (log/debugf "Removed %d items from %s" num-removed reg-key)))))))))
 
 (def ^:private loop-sleep-ms (* 1000 60))
 
