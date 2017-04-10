@@ -29,5 +29,6 @@
       (async/alt!!
         stop-chan :exit-loop
         :default (-> (run-once context)
-                     (sleep-if-no-jobs))))
+                     (sleep-if-no-jobs))
+        :priority true))
     (log/info "exiting main loop")))
