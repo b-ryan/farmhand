@@ -4,15 +4,15 @@
             [farmhand.jobs :as jobs]
             [farmhand.queue :as q]
             [farmhand.redis :as r :refer [with-jedis with-transaction]]
-            [farmhand.utils :refer [now-millis safe-loop]])
-  (:import (redis.clients.jedis Jedis Transaction)))
+            [farmhand.registry :as registry]
+            [farmhand.utils :refer [now-millis safe-loop]]))
 
-(defn schedule-key ^String [c queue-name] (r/redis-key c "schedule:" queue-name))
+(defn registry-name [queue-name] (str "schedule:" queue-name))
 
 (defn run-at*
   [context job-id queue-name at]
-  (with-transaction [{:keys [^Transaction transaction] :as context} context]
-    (.zadd transaction (schedule-key context queue-name) (double at) ^String job-id)
+  (with-transaction [context context]
+    (registry/add context (registry-name queue-name) job-id :expire-at at)
     (jobs/update-props context job-id {:status "scheduled"})))
 
 (defn run-at
@@ -43,38 +43,8 @@
   [context job n unit]
   (run-at context job (from-now n unit)))
 
-(defn- fetch-ready-id
-  "Fetches the next job-id that is ready to be enqueued (or nil if there is
-  none)."
-  [{:keys [^Jedis jedis] :as context} queue-name ^String now]
-  (-> (.zrangeByScore jedis (schedule-key context queue-name)
-                      "-inf" now (int 0) (int 1))
-      (first)))
-
-(defn pull-and-enqueue
+(defn registries
   [{:keys [queues] :as context}]
-  (let [now-str (str (now-millis))]
-    (with-jedis [{:keys [^Jedis jedis] :as context} context]
-      (doseq [{queue-name :name} queues
-              :let [sch-key (schedule-key context queue-name)]]
-        (loop []
-          (.watch jedis (r/str-arr sch-key))
-          (if-let [job-id (fetch-ready-id context queue-name now-str)]
-            (do
-              (with-transaction [{:keys [^Transaction transaction] :as context} context]
-                (.zrem transaction sch-key (r/str-arr job-id))
-                (q/push context job-id queue-name))
-              (recur))
-            (.unwatch jedis)))))))
-
-(defn- sleep-time [] (int (* (rand 15) 1000)))
-
-(defn schedule-thread
-  [context stop-chan]
-  (async/thread
-    (log/info "in schedule thread")
-    (safe-loop
-      (async/alt!!
-        stop-chan :exit-loop
-        (async/timeout (sleep-time)) (pull-and-enqueue context)))
-    (log/info "exiting schedule thread")))
+  (for [{queue-name :name} queues]
+    {:name (registry-name queue-name)
+     :cleanup-fn #(q/push %1 %2 queue-name)}))

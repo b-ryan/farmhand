@@ -70,6 +70,14 @@
                (throw e#))
              (pause-for-exception e#)))))))
 
+(defmacro safe-loop-thread
+  [desc & body]
+  `(async/thread
+     (log/info (str "in " ~desc " thread"))
+     (safe-loop
+       ~@body)
+     (log/info (str "exiting " ~desc " thread"))))
+
 (defn parse-long
   [x]
   (when x (Long/parseLong x)))

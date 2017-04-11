@@ -5,7 +5,8 @@
             [farmhand.queue :as q]
             [farmhand.redis :refer [with-jedis]]
             [farmhand.test-utils :as tu]
-            [farmhand.work :as work]))
+            [farmhand.work :as work])
+  (:import (redis.clients.jedis Jedis)))
 
 (def last-call-args (atom nil))
 
@@ -25,8 +26,8 @@
       (is (= @last-call-args [:a 1 3.4 "abc"])))
     (testing "completed job has been added to the completed registry"
       (is (=
-           (with-jedis [{:keys [jedis]} tu/context]
-             (.zrange jedis (q/completed-key tu/context) 0 10))
+           (with-jedis [{:keys [^Jedis jedis]} tu/context]
+             (.zrange jedis tu/completed-key 0 10))
            #{job-id})))))
 
 (defn fail-fn [] (throw (Exception. "baz")))
@@ -36,8 +37,8 @@
     (work/run-once tu/context)
     (testing "failed job has been added to the dead letter registry"
       (is (=
-           (with-jedis [{:keys [jedis]} tu/context]
-             (.zrange jedis (q/dead-letter-key tu/context) 0 10))
+           (with-jedis [{:keys [^Jedis jedis]} tu/context]
+             (.zrange jedis tu/dead-key 0 10))
            #{job-id})))))
 
 (deftest requeuing

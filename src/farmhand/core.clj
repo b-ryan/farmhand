@@ -75,13 +75,24 @@
   ([context job in unit]
    (schedule/run-in context job in unit)))
 
+(def ^:private base-registries
+  [{:name queue/in-flight-registry :cleanup-fn #(queue/fail %1 %2 :reason "Expired")}
+   {:name queue/completed-registry :cleanup-fn jobs/delete}
+   {:name queue/dead-letter-registry :cleanup-fn jobs/delete}])
+
+(defn assoc-registries
+  [context]
+  (assoc context :registries (concat base-registries
+                                     (schedule/registries context))))
+
 (defn create-context
   ([] (create-context {}))
   ([{:keys [handler queues redis pool prefix]}]
-   (let [context {:queues (config/queues queues)
-                  :jedis-pool (or pool (redis/create-pool (config/redis redis)))
-                  :prefix (config/prefix prefix)
-                  :handler (or handler handler/default-handler)}]
+   (let [context (-> {:queues (config/queues queues)
+                      :jedis-pool (or pool (redis/create-pool (config/redis redis)))
+                      :prefix (config/prefix prefix)
+                      :handler (or handler handler/default-handler)}
+                     assoc-registries)]
      (reset! context* context)
      context)))
 
@@ -93,8 +104,7 @@
          threads (concat
                    (for [_ (range (config/num-workers num-workers))]
                      (work/work-thread context stop-chan))
-                   [(schedule/schedule-thread context stop-chan)
-                    (registry/cleanup-thread context stop-chan)])
+                   [(registry/cleanup-thread context stop-chan)])
          server {:context context
                  :stop-chan stop-chan
                  :threads (doall threads)}]

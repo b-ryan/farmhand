@@ -1,13 +1,25 @@
 (ns farmhand.test-utils
   (:require [farmhand.config :as cfg]
+            [farmhand.core :refer [assoc-registries]]
             [farmhand.handler :refer [default-handler]]
-            [farmhand.redis :as r :refer [with-jedis]]))
+            [farmhand.jobs :as jobs]
+            [farmhand.queue :as q]
+            [farmhand.redis :as r :refer [with-jedis]]
+            [farmhand.registry :refer [registry-key]]
+            [farmhand.schedule :as schedule]))
 
 (def test-prefix "farmhand-test:")
-(def context {:jedis-pool (r/create-pool)
-              :prefix test-prefix
-              :queues [{:name "default"}]
-              :handler default-handler})
+
+(def context (-> {:jedis-pool (r/create-pool)
+                  :prefix test-prefix
+                  :queues [{:name "default"}]
+                  :handler default-handler}
+                 assoc-registries))
+
+(def ^String completed-key (registry-key context q/completed-registry))
+(def ^String dead-key (registry-key context q/dead-letter-registry))
+(def ^String in-flight-key (registry-key context q/in-flight-registry))
+(def ^String schedule-key (registry-key context (schedule/registry-name "default")))
 
 (defn cleanup-redis
   []

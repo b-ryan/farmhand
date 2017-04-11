@@ -7,10 +7,10 @@
   (:import (redis.clients.jedis Jedis Transaction)))
 
 (defn all-queues-key ^String [c] (r/redis-key c "queues"))
-(defn in-flight-key ^String [c] (r/redis-key c "inflight"))
-(defn completed-key ^String [c] (r/redis-key c "completed"))
 (defn queue-key ^String [c queue-name] (r/redis-key c "queue:" queue-name))
-(defn dead-letter-key ^String [c] (r/redis-key c "dead"))
+(def in-flight-registry "inflight")
+(def completed-registry "completed")
+(def dead-letter-registry "dead")
 
 (defn push
   [context job-id queue-name]
@@ -72,7 +72,8 @@
   {:pre [(vector? queue-names)]}
   (let [keys (mapv #(queue-key context %) queue-names)
         now-str (str (now-millis))
-        params (r/seq->str-arr (conj keys (in-flight-key context) now-str))
+        in-flight-key (registry/registry-key context in-flight-registry)
+        params (r/seq->str-arr (conj keys in-flight-key now-str))
         num-keys ^Integer (inc (count keys))]
     (with-jedis [{:keys [^Jedis jedis]} context]
       (.eval jedis dequeue-lua num-keys params))))
@@ -83,22 +84,22 @@
     (jobs/update-props context job-id {:status "complete"
                                        :result result
                                        :completed-at (now-millis)})
-    (registry/delete context (in-flight-key context) job-id)
-    (registry/add context (completed-key context) job-id)))
+    (registry/delete context in-flight-registry job-id)
+    (registry/add context completed-registry job-id)))
 
 (defn requeue
   [context job-id]
   (with-jedis [{:keys [jedis] :as context} context]
     (let [{:keys [queue]} (jobs/fetch-body context job-id)]
       (with-transaction [context context]
-        (registry/add context (dead-letter-key context) job-id)
+        (registry/add context dead-letter-registry job-id)
         (push context job-id queue)))))
 
 (defn fail
   [context job-id & {:keys [reason]}]
   (with-transaction [context context]
-    (registry/delete context (in-flight-key context) job-id)
-    (registry/add context (dead-letter-key context) job-id)
+    (registry/delete context in-flight-registry job-id)
+    (registry/add context dead-letter-registry job-id)
     (jobs/update-props context job-id {:status "failed"
                                        :reason reason
                                        :failed-at (now-millis)})))

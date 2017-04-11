@@ -3,44 +3,34 @@
             [clojure.tools.logging :as log]
             [farmhand.jobs :as jobs]
             [farmhand.redis :as r :refer [with-jedis with-transaction]]
-            [farmhand.utils :refer [now-millis safe-loop]])
+            [farmhand.utils :refer [now-millis safe-loop-thread]])
   (:import (redis.clients.jedis Jedis RedisPipeline Transaction Tuple)))
 
-(defn all-registries-key ^String [c] (r/redis-key c "registries"))
+(defn registry-key ^String [c reg-name] (r/redis-key c "registry:" reg-name))
 
 (def ^:private default-ttl-ms (* 1000 60 60 24 60)) ;; 60 days
 (defn- expiration [ttl-ms] (+ (now-millis) (or ttl-ms default-ttl-ms)))
 
 (defn add
-  [context ^String key ^String job-id & {:keys [ttl-ms]}]
-  (with-transaction [{:keys [^RedisPipeline transaction]} context]
-    (.sadd transaction (all-registries-key context) (r/str-arr key))
-    (.zadd transaction key (double (expiration ttl-ms)) job-id)))
+  [context ^String reg-name ^String job-id & {:keys [ttl-ms expire-at]}]
+  (let [exp (double (or expire-at (expiration ttl-ms)))]
+    (with-transaction [{:keys [^RedisPipeline transaction]} context]
+      (.zadd transaction (registry-key context reg-name) exp job-id))))
 
 (defn delete
-  [context ^String key ^String job-id]
+  [context ^String reg-name ^String job-id]
   (with-transaction [{:keys [^RedisPipeline transaction]} context]
-    (.zrem transaction key (r/str-arr job-id))))
+    (.zrem transaction (registry-key context reg-name) (r/str-arr job-id))))
 
-(defn- num-items
-  [context ^String key]
-  (with-jedis [{:keys [^Jedis jedis]} context]
-    (.zcard jedis key)))
-
-(defn- all-registries
-  [context]
-  (with-jedis [{:keys [^Jedis jedis]} context]
-    (.smembers jedis (all-registries-key context))))
-
-(def ^:private default-size 25)
+(def ^:private default-page-size 25)
 
 (defn- page-raw
-  [^Jedis jedis ^String key {:keys [page size newest-first?]}]
+  [^Jedis jedis ^String reg-key {:keys [page size newest-first?]}]
   (let [page (or page 0)
-        size (or size default-size)
+        size (or size default-page-size)
         start (* page size)
         end (dec (+ start size))
-        items (.zrangeWithScores jedis key ^Long start ^Long end)
+        items (.zrangeWithScores jedis reg-key ^Long start ^Long end)
         comparator (if newest-first? #(compare %2 %1) #(compare %1 %2))]
     (->> items
          (map (fn [^Tuple tuple] {:expiration (long (.getScore tuple))
@@ -48,22 +38,23 @@
          (sort-by :expiration comparator))))
 
 (defn- last-page
-  [^Jedis jedis ^String key {:keys [page size] :as options}]
+  [^Jedis jedis ^String reg-key {:keys [page size] :as options}]
   (let [page (or page 0)
-        size (or size default-size)]
-    (-> (.zcard jedis key)
+        size (or size default-page-size)]
+    (-> (.zcard jedis reg-key)
         (/ size)
         (Math/ceil)
         (int)
         (dec))))
 
 (defn page
-  [context key {:keys [page] :as options}]
+  [context reg-name {:keys [page] :as options}]
   (with-jedis [{:keys [jedis] :as context} context]
     (let [fetcher #(update-in % [:job] (partial jobs/fetch-body context))
-          items (->> (page-raw jedis key options)
+          reg-key (registry-key context reg-name)
+          items (->> (page-raw jedis reg-key options)
                      (map fetcher))
-          last-page (last-page jedis key options)
+          last-page (last-page jedis reg-key options)
           page (or page 0)]
       {:items items
        :prev-page (when (> page 0) (dec page))
@@ -76,23 +67,22 @@
       (first)))
 
 (defn- remove-from-registry
-  [context ^String reg-key ^String job-id]
+  [context ^String reg-key ^String job-id cleanup-fn]
   (with-transaction [{:keys [^Transaction transaction] :as context} context]
-    ;; TODO do something different with the job depending on the
-    ;; registry type
-    (jobs/delete context job-id)
+    (cleanup-fn context job-id)
     (.zrem transaction reg-key (r/str-arr job-id))))
 
 (defn cleanup
-  [context]
+  [{:keys [registries] :as context}]
   (let [now-str (str (now-millis))]
-    (with-jedis [{:keys [^Jedis jedis]} context]
-      (doseq [reg-key (all-registries context)]
+    (with-jedis [{:keys [^Jedis jedis] :as context} context]
+      (doseq [{reg-name :name cleanup-fn :cleanup-fn} registries
+              :let [reg-key (registry-key context reg-name)]]
         (loop [num-removed 0]
           (.watch jedis (r/str-arr reg-key))
           (if-let [job-id (fetch-ready-id jedis reg-key now-str)]
             (do
-              (remove-from-registry context reg-key job-id)
+              (remove-from-registry context reg-key job-id cleanup-fn)
               (recur (inc num-removed)))
             (do
               (.unwatch jedis)
@@ -103,10 +93,8 @@
 
 (defn cleanup-thread
   [context stop-chan]
-  (async/thread
-    (log/info "in registry cleanup thread")
-    (safe-loop
-      (async/alt!!
-        stop-chan :exit-loop
-        (async/timeout loop-sleep-ms) (cleanup context)))
-    (log/info "exiting registry cleanup thread")))
+  (safe-loop-thread
+    "registry"
+    (async/alt!!
+      stop-chan :exit-loop
+      (async/timeout loop-sleep-ms) (cleanup context))))

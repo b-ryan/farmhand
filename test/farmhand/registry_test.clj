@@ -17,7 +17,7 @@
   [context job expiration]
   `(with-redefs [registry/expiration (constantly ~expiration)]
      (jobs/save-new ~context ~job)
-     (registry/add ~context (q/completed-key ~context) (:job-id ~job))))
+     (registry/add ~context q/completed-registry (:job-id ~job))))
 
 (defn save-jobs-fixture
   [f]
@@ -30,7 +30,7 @@
 (use-fixtures :each tu/redis-test-fixture save-jobs-fixture)
 
 (deftest sorts-items-by-oldest-first
-  (is (= (registry/page tu/context (q/completed-key tu/context) {})
+  (is (= (registry/page tu/context q/completed-registry {})
          {:items [{:expiration 1234 :job job1}
                   {:expiration 3456 :job job2}
                   {:expiration 5678 :job job3}]
@@ -38,7 +38,7 @@
           :next-page nil})))
 
 (deftest sorts-items-by-newest-first
-  (is (= (registry/page tu/context (q/completed-key tu/context) {:newest-first? true})
+  (is (= (registry/page tu/context q/completed-registry {:newest-first? true})
          {:items [{:expiration 5678 :job job3}
                   {:expiration 3456 :job job2}
                   {:expiration 1234 :job job1}]
@@ -46,7 +46,7 @@
           :next-page nil})))
 
 (deftest pages-are-handled
-  (is (= (registry/page tu/context (q/completed-key tu/context) {:page 1 :size 1})
+  (is (= (registry/page tu/context q/completed-registry {:page 1 :size 1})
          {:items [{:expiration 3456 :job job2}]
           :prev-page 0
           :next-page 2})))
@@ -54,7 +54,7 @@
 (deftest cleanup-removes-older-jobs
   (with-redefs [now-millis (constantly 4000)]
     (registry/cleanup tu/context))
-  (is (= (registry/page tu/context (q/completed-key tu/context) {})
+  (is (= (registry/page tu/context q/completed-registry {})
          {:items [{:expiration 5678 :job job3}]
           :prev-page nil
           :next-page nil}))
