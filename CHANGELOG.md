@@ -1,5 +1,21 @@
 # Change Log
 
+## Unreleased
+
+FIXES
+
+- In flight jobs that expire will be marked as failed rather than deleted.
+- Job data will no longer expire 60 days after the job was created. The data
+  will be deleted when the job expires from the "dead" or "completed" queue.
+- Persistent exceptions in the "work" thread will no longer prevent the thread
+  from exiting when shutting down the server.
+
+BREAKING
+
+- The Redis key structure has changed for "registries" - like the dead letters,
+  completed jobs, in flight jobs, and scheduled jobs.
+- Cleanup-related functions in the schedule namespace are gone.
+
 ## 0.8.0
 
 FEATURES
