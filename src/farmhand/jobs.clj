@@ -42,20 +42,43 @@
       (utils/update-keys name)
       (utils/update-vals pr-str)))
 
-(defn save-new
-  [context {job-id :job-id :as job}]
-  ;; The typehint using RedisPipeline here is because using Transaction creates
-  ;; an ambiguous typehint
-  ;; Transaction is used so it can be nested within other transactions
-  (with-transaction [{:keys [^RedisPipeline transaction]} context]
-    (.hmset transaction (job-key context job-id) (prepare-to-save job))))
+(defn save
+  "Saves job data in Redis. Can save either the entire or a portion of its
+  keys. For example, you can use this function to update just the status of a
+  job using
+
+    (save context job-id {:status \"something\"})
+
+  You must either provide the job-id as the second argument or the keys being
+  saved should contain the job-id. For example you could also save the status
+  using
+
+    (save context {:job-id job-id :status \"something\"})"
+  ([context {job-id :job-id :as job}]
+   (save context job-id job))
+  ([context job-id properties]
+   ;; The typehint using RedisPipeline here is because using Transaction creates
+   ;; an ambiguous typehint
+   ;; Transaction is used so it can be nested within other transactions
+   (with-transaction [{:keys [^RedisPipeline transaction]} context]
+     (.hmset transaction (job-key context job-id) (prepare-to-save properties)))))
 
 (defn update-props
-  [context job-id props]
-  ;; The typehint using RedisPipeline here is because using Transaction creates
-  ;; an ambiguous typehint
-  (with-transaction [{:keys [^RedisPipeline transaction]} context]
-    (.hmset transaction (job-key context job-id) (prepare-to-save props))))
+  "A small wrapper around 'save' that takes a job and some properties, saves
+  the properties in Redis, and returns the properties merged into the job.
+
+  For example:
+
+    (update-props context {:job-id \"foo\"} {:status \"something\"})
+
+  will save the jobs status as \"something\" and return
+
+    {:job-id \"foo\" :status \"something\"}"
+  [context {job-id :job-id :as job} props]
+  (save context job-id props)
+  (merge job props))
+
+(defn- m-seq [m] (if (empty? m) nil m))
 
 (defn assoc-fn-var
   [{:keys [fn-path] :as job}]
@@ -70,9 +93,7 @@
     (catch FileNotFoundException e))
   (assoc job :fn-var (some-> fn-path (symbol) (resolve))))
 
-(defn- m-seq [m] (if (empty? m) nil m))
-
-(defn fetch-body
+(defn fetch
   [context job-id]
   (with-jedis [{:keys [^Jedis jedis]} context]
     (some-> (into {} (.hgetAll jedis (job-key context job-id)))

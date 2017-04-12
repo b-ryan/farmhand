@@ -16,7 +16,7 @@
 (defmacro save
   [context job expiration]
   `(with-redefs [registry/expiration (constantly ~expiration)]
-     (jobs/save-new ~context ~job)
+     (jobs/save ~context ~job)
      (registry/add ~context q/completed-registry (:job-id ~job))))
 
 (defn save-jobs-fixture
@@ -58,6 +58,6 @@
          {:items [{:expiration 5678 :job job3}]
           :prev-page nil
           :next-page nil}))
-  (is (nil? (jobs/fetch-body tu/context (:job-id job1))))
-  (is (nil? (jobs/fetch-body tu/context (:job-id job2))))
-  (is (= (jobs/fetch-body tu/context (:job-id job3)) job3)))
+  (is (nil? (jobs/fetch tu/context (:job-id job1))))
+  (is (nil? (jobs/fetch tu/context (:job-id job2))))
+  (is (= (jobs/fetch tu/context (:job-id job3)) job3)))

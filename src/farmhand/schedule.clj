@@ -13,7 +13,7 @@
   [context job-id queue-name at]
   (with-transaction [context context]
     (registry/add context (registry-name queue-name) job-id :expire-at at)
-    (jobs/update-props context job-id {:status "scheduled"})))
+    (jobs/save context job-id {:status "scheduled"})))
 
 (defn run-at
   "Schedules a job to run at some time in the future. See the docs in
@@ -21,7 +21,7 @@
   [context job at]
   (let [{job-id :job-id queue-name :queue :as normalized} (jobs/normalize job)]
     (with-transaction [context context]
-      (jobs/save-new context normalized)
+      (jobs/save context normalized)
       (run-at* context job-id queue-name at))
     job-id))
 

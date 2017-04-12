@@ -26,7 +26,7 @@
         (is (= (.zrange jedis tu/dead-key 0 10) #{})))
       (testing "job as removed from in progress"
         (is (= (.zrange jedis tu/in-flight-key 0 10) #{}))
-        (is (= (:status (jobs/fetch-body tu/context job-id)) "scheduled"))))))
+        (is (= (:status (jobs/fetch tu/context job-id)) "scheduled"))))))
 
 (deftest max-attempts-reached
   (let [job-id (fc/enqueue tu/context {:fn-var #'fail :retry {:strategy "backoff" :max-attempts 1}})]

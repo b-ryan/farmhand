@@ -25,7 +25,7 @@
   (let [job-id (run-at tu/context {:fn-var #'work-fn} earlier-than-now)]
     (is (seq job-id))
     (is (nil? (queue/dequeue tu/context ["default"])))
-    (is (= (:status (jobs/fetch-body tu/context job-id)) "scheduled"))
+    (is (= (:status (jobs/fetch tu/context job-id)) "scheduled"))
     (registry/cleanup tu/context)
     (is (= (queue/dequeue tu/context ["default"]) job-id))))
 

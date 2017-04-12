@@ -37,7 +37,7 @@
   ([context job]
    (let [{:keys [job-id queue] :as job} (jobs/normalize job)]
      (with-transaction [context context]
-       (jobs/save-new context job)
+       (jobs/save context job)
        (queue/push context job-id queue))
      job-id)))
 

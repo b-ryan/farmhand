@@ -35,10 +35,11 @@
              :delay-time (int delay-time)))))
 
 (defn- handle-retry
-  [{{:keys [job-id queue] :as job} :job context :context} response]
-  (let [{:keys [delay-time delay-unit] :as retry} (update-retry job)]
-    (with-transaction [context context]
-      (jobs/update-props context job-id {:retry retry})
+  [{{:keys [job-id queue] :as job} :job context :context :as response}]
+  (with-transaction [context context]
+    (let [{:keys [delay-time delay-unit] :as retry} (update-retry job)
+          new-job (jobs/update-props context job {:retry retry})
+          response (assoc response :job new-job)]
       (if retry
         (let [delay-ts (schedule/from-now delay-time delay-unit)]
           (schedule/run-at* context job-id queue delay-ts)
@@ -49,12 +50,11 @@
 (defn wrap-retry
   "Middleware for automatically scheduling jobs to be retried. This middleware
   should be sandwiched somewhere between
-  farmhand.handler/execute-with-ex-handle and farmhand.handler/wrap-outer.
-
-  See farmhand.handler/default-handler for an example."
+  farmhand.handler/execute-job and farmhand.handler/wrap-outer. See
+  farmhand.handler/default-handler for an example."
   [handler]
   (fn [request]
     (let [{:keys [status handled?] :as response} (handler request)]
       (if (and (= status :failure) (not handled?))
-        (handle-retry request response)
+        (handle-retry response)
         response))))

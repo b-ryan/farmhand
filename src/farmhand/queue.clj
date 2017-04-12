@@ -17,7 +17,7 @@
   (with-transaction [{:keys [^Transaction transaction] :as context} context]
     (.sadd transaction (all-queues-key context) (r/str-arr queue-name))
     (.lpush transaction (queue-key context queue-name) (r/str-arr job-id))
-    (jobs/update-props context job-id {:status "queued"})))
+    (jobs/save context job-id {:status "queued"})))
 
 (defn describe-queues
   "Returns a list of all queues and their current number of items."
@@ -79,27 +79,31 @@
       (.eval jedis dequeue-lua num-keys params))))
 
 (defn complete
-  [context job-id & {:keys [result]}]
+  "Moves a job into the completed registry and updates the job's status to
+  complete. Returns the updated job."
+  [context {job-id :job-id :as job} & {:keys [result]}]
   (with-transaction [context context]
-    (jobs/update-props context job-id {:status "complete"
-                                       :result result
-                                       :completed-at (now-millis)})
     (registry/delete context in-flight-registry job-id)
-    (registry/add context completed-registry job-id)))
+    (registry/add context completed-registry job-id)
+    (jobs/update-props context job {:status "complete"
+                                    :result result
+                                    :completed-at (now-millis)})))
+
+(defn fail
+  "Moves a job into the failed registry and updates the job's status to
+  failed. Returns the updated job."
+  [context {job-id :job-id :as job} & {:keys [reason]}]
+  (with-transaction [context context]
+    (registry/delete context in-flight-registry job-id)
+    (registry/add context dead-letter-registry job-id)
+    (jobs/update-props context job {:status "failed"
+                                    :reason reason
+                                    :failed-at (now-millis)})))
 
 (defn requeue
   [context job-id]
   (with-jedis [{:keys [jedis] :as context} context]
-    (let [{:keys [queue]} (jobs/fetch-body context job-id)]
+    (let [{:keys [queue]} (jobs/fetch context job-id)]
       (with-transaction [context context]
         (registry/add context dead-letter-registry job-id)
         (push context job-id queue)))))
-
-(defn fail
-  [context job-id & {:keys [reason]}]
-  (with-transaction [context context]
-    (registry/delete context in-flight-registry job-id)
-    (registry/add context dead-letter-registry job-id)
-    (jobs/update-props context job-id {:status "failed"
-                                       :reason reason
-                                       :failed-at (now-millis)})))

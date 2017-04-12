@@ -50,7 +50,7 @@
 (defn page
   [context reg-name {:keys [page] :as options}]
   (with-jedis [{:keys [jedis] :as context} context]
-    (let [fetcher #(update-in % [:job] (partial jobs/fetch-body context))
+    (let [fetcher #(update-in % [:job] (partial jobs/fetch context))
           reg-key (registry-key context reg-name)
           items (->> (page-raw jedis reg-key options)
                      (map fetcher))
