@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+FEATURES
+
+- Job maps are updated and passed through all the "handler" code.
+
 FIXES
 
 - In flight jobs that expire will be marked as failed rather than deleted.
@@ -9,6 +13,8 @@ FIXES
   will be deleted when the job expires from the "dead" or "completed" queue.
 - Persistent exceptions in the "work" thread will no longer prevent the thread
   from exiting when shutting down the server.
+- Requeuing jobs previously did not delete the job from the dead letter
+  registry.
 
 BREAKING
 

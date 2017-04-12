@@ -16,15 +16,13 @@
   [{{fn-var :fn-var args :args} :job :as request}]
   (merge request
          (if fn-var
-           {:status :success
-            :result (apply fn-var args)}
-           {:status :failure
-            :reason "Function cannot be found"})))
+           {:status :success :result (apply fn-var args)}
+           {:status :failure :reason "Function cannot be found"})))
 
 (defn wrap-exception-handler
   "Middleware that catches exceptions. Relies on the farmhand.utils/fatal?
   function to define whether an exception can be handled. If an exception is
-  considered fatal, then the exception is rethrown."
+  considered fatal, then it is rethrown."
   [handler]
   (fn exception-handler [{:keys [job-id] :as request}]
     (try
@@ -76,14 +74,12 @@
   "Utility function provided for convenience. Logs the request and response."
   [handler]
   (fn debug [request]
-    (log/debugf "received request %s" (:job request))
+    (log/debugf "received request %s" request)
     (let [response (handler request)]
-      (log/debugf "received response %s" (:job response))
+      (log/debugf "received response %s" response)
       response)))
 
 (def default-handler (-> execute-job
                          wrap-exception-handler
-                         wrap-debug
                          wrap-retry
-                         wrap-debug
                          wrap-outer))
