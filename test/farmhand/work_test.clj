@@ -36,12 +36,19 @@
   (let [job-id (enqueue tu/context {:fn-var #'fail-fn :args []})]
     (work/run-once tu/context)
     (testing "failed job has been added to the dead letter registry"
-      (is (=
-           (with-jedis [{:keys [^Jedis jedis]} tu/context]
-             (.zrange jedis tu/dead-key 0 10))
-           #{job-id})))))
+      (is (= (with-jedis [{:keys [^Jedis jedis]} tu/context]
+               (.zrange jedis tu/dead-key 0 10))
+             #{job-id})))))
 
 (deftest requeuing
   (let [job-id (enqueue tu/context {:fn-var #'fail-fn :args []})]
     (work/run-once tu/context)
-    (q/requeue tu/context job-id)))
+    (q/requeue tu/context job-id)
+    (testing "job is queued"
+      (is (= (with-jedis [{:keys [^Jedis jedis]} tu/context]
+               (.lrange jedis tu/queue-key 0 10))
+             [job-id])))
+    (testing "job is no longer on the dead letter registry"
+      (is (= (with-jedis [{:keys [^Jedis jedis]} tu/context]
+               (.zrange jedis tu/dead-key 0 10))
+             #{})))))

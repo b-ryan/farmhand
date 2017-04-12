@@ -101,9 +101,10 @@
                                     :failed-at (now-millis)})))
 
 (defn requeue
+  "Puts job-id back onto its queue after it has failed."
   [context job-id]
   (with-jedis [{:keys [jedis] :as context} context]
     (let [{:keys [queue]} (jobs/fetch context job-id)]
       (with-transaction [context context]
-        (registry/add context dead-letter-registry job-id)
+        (registry/delete context dead-letter-registry job-id)
         (push context job-id queue)))))

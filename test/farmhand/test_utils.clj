@@ -16,6 +16,7 @@
                   :handler default-handler}
                  assoc-registries))
 
+(def ^String queue-key (q/queue-key context "default"))
 (def ^String completed-key (registry-key context q/completed-registry))
 (def ^String dead-key (registry-key context q/dead-letter-registry))
 (def ^String in-flight-key (registry-key context q/in-flight-registry))
