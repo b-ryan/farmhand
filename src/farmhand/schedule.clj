@@ -10,20 +10,22 @@
 (defn registry-name [queue-name] (str "schedule:" queue-name))
 
 (defn run-at*
-  [context job-id queue-name at]
+  "Lower level function for scheduling a job. Puts the job on the schedule
+  registry and updates the job's status to \"scheduled\". Returns the updated
+  job."
+  [context {job-id :job-id :as job} queue-name at]
   (with-transaction [context context]
     (registry/add context (registry-name queue-name) job-id :expire-at at)
-    (jobs/save context job-id {:status "scheduled"})))
+    (jobs/update-props context job {:status "scheduled"})))
 
 (defn run-at
-  "Schedules a job to run at some time in the future. See the docs in
-  farmhand.core/run-at for more details."
+  "Normalizes a job schedules it to run at some time in the future. Returns the
+  updated job. See the docs in farmhand.core/run-at for more details."
   [context job at]
-  (let [{job-id :job-id queue-name :queue :as normalized} (jobs/normalize job)]
+  (let [{queue-name :queue :as normalized} (jobs/normalize job)]
     (with-transaction [context context]
       (jobs/save context normalized)
-      (run-at* context job-id queue-name at))
-    job-id))
+      (run-at* context normalized queue-name at))))
 
 (def ^:private multipliers {:milliseconds 1
                             :seconds 1000

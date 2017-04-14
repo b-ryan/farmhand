@@ -42,9 +42,10 @@
           response (assoc response :job new-job)]
       (if retry
         (let [delay-ts (schedule/from-now delay-time delay-unit)]
-          (schedule/run-at* context job-id queue delay-ts)
           (registry/delete context queue/in-flight-registry job-id)
-          (assoc response :handled? true))
+          (assoc response
+                 :handled? true
+                 :job (schedule/run-at* context new-job queue delay-ts)))
         response))))
 
 (defn wrap-retry

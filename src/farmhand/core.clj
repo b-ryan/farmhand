@@ -50,7 +50,7 @@
 
   The 'at' argument should be a timestamp specified in milliseconds.
 
-  Returns the job's ID."
+  Returns the updated job."
   ([job at]
    (schedule/run-at @context* job at))
   ([context job at]
@@ -69,7 +69,7 @@
 
     (run-in context job 2 :minutes)
 
-  Returns the job's ID."
+  Returns the updated job."
   ([job in unit]
    (schedule/run-in @context* job in unit))
   ([context job in unit]
