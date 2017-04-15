@@ -1,6 +1,5 @@
 (ns farmhand.jobs
-  (:require [clojure.edn :as edn]
-            [clojure.string :refer [split]]
+  (:require [clojure.string :refer [split]]
             [farmhand.redis :as r :refer [with-jedis with-transaction]]
             [farmhand.utils :as utils :refer [now-millis]])
   (:import (java.io FileNotFoundException)
@@ -99,7 +98,7 @@
     (some-> (into {} (.hgetAll jedis (job-key context job-id)))
             (m-seq)
             (utils/update-keys keyword)
-            (utils/update-vals edn/read-string)
+            (utils/update-vals read-string)
             (assoc-fn-var))))
 
 (defn delete

@@ -12,15 +12,24 @@
 (defn- expiration [ttl-ms] (+ (now-millis) (or ttl-ms default-ttl-ms)))
 
 (defn add
-  [context ^String reg-name ^String job-id & {:keys [ttl-ms expire-at]}]
+  [context ^String job-id ^String reg-name & [{:keys [ttl-ms expire-at]}]]
   (let [exp (double (or expire-at (expiration ttl-ms)))]
     (with-transaction [{:keys [^RedisPipeline transaction]} context]
       (.zadd transaction (registry-key context reg-name) exp job-id))))
 
+
+;; TODO why do these functions take job-id as last arg?
+
 (defn delete
-  [context ^String reg-name ^String job-id]
-  (with-transaction [{:keys [^RedisPipeline transaction]} context]
-    (.zrem transaction (registry-key context reg-name) (r/str-arr job-id))))
+  [context ^String job-id ^String reg-key]
+  (with-transaction [{:keys [^Transaction transaction] :as context} context]
+    (.zrem transaction reg-key (r/str-arr job-id))))
+
+(defn- remove-with-cleanup-fn
+  [context ^String job-id ^String reg-key cleanup-fn]
+  (with-transaction [context context]
+    (delete context job-id reg-key)
+    (cleanup-fn context job-id)))
 
 (def ^:private default-page-size 25)
 
@@ -66,12 +75,6 @@
   (-> (.zrangeByScore jedis reg-key "-inf" now (int 0) (int 1))
       (first)))
 
-(defn- remove-from-registry
-  [context ^String reg-key ^String job-id cleanup-fn]
-  (with-transaction [{:keys [^Transaction transaction] :as context} context]
-    (cleanup-fn context job-id)
-    (.zrem transaction reg-key (r/str-arr job-id))))
-
 (defn cleanup
   [{:keys [registries] :as context}]
   (let [now-str (str (now-millis))]
@@ -82,7 +85,7 @@
           (.watch jedis (r/str-arr reg-key))
           (if-let [job-id (fetch-ready-id jedis reg-key now-str)]
             (do
-              (remove-from-registry context reg-key job-id cleanup-fn)
+              (remove-with-cleanup-fn context job-id reg-key cleanup-fn)
               (recur (inc num-removed)))
             (do
               (.unwatch jedis)

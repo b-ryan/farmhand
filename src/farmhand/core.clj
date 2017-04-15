@@ -7,8 +7,7 @@
             [farmhand.redis :as redis :refer [with-transaction]]
             [farmhand.registry :as registry]
             [farmhand.schedule :as schedule]
-            [farmhand.work :as work])
-  (:gen-class))
+            [farmhand.work :as work]))
 
 (defonce
   ^{:doc "An atom that contains the most recent context created by
@@ -119,26 +118,3 @@
    (async/close! stop-chan)
    (async/<!! (async/merge threads))
    (redis/close-pool context)))
-
-(defn -main
-  [& _]
-  (start-server))
-
-
-(comment
-
-  (do
-    (start-server {:handler (handler/wrap-debug handler/default-handler)})
-    (defn slow-job [& args] (Thread/sleep 10000) :slow-result)
-    (defn failing-job [& args] (throw (ex-info "foo" {:a :b}))))
-
-  (enqueue @context* {:fn-var #'slow-job :args ["i am slow"]})
-  (enqueue @context* {:fn-var #'failing-job :args ["fail"]})
-  (enqueue @context* {:fn-var #'failing-job :args ["fail"]
-                      :retry {:strategy "backoff"
-                              :delay-unit :minutes
-                              :max-attempts 2}})
-
-  (schedule/run-in @context* {:fn-var #'slow-job :args ["i am slow"]} 1 :minutes)
-
-  (stop-server))

@@ -75,30 +75,12 @@
         in-flight-key (registry/registry-key context in-flight-registry)
         params (r/seq->str-arr (conj keys in-flight-key now-str))
         num-keys ^Integer (inc (count keys))]
-    (with-jedis [{:keys [^Jedis jedis]} context]
-      (.eval jedis dequeue-lua num-keys params))))
-
-(defn complete
-  "Moves a job into the completed registry and updates the job's status to
-  complete. Returns the updated job."
-  [context {job-id :job-id :as job} & {:keys [result]}]
-  (with-transaction [context context]
-    (registry/delete context in-flight-registry job-id)
-    (registry/add context completed-registry job-id)
-    (jobs/update-props context job {:status "complete"
-                                    :result result
-                                    :completed-at (now-millis)})))
-
-(defn fail
-  "Moves a job into the failed registry and updates the job's status to
-  failed. Returns the updated job."
-  [context {job-id :job-id :as job} & {:keys [reason]}]
-  (with-transaction [context context]
-    (registry/delete context in-flight-registry job-id)
-    (registry/add context dead-letter-registry job-id)
-    (jobs/update-props context job {:status "failed"
-                                    :reason reason
-                                    :failed-at (now-millis)})))
+    (with-jedis [{:keys [^Jedis jedis] :as context} context]
+      (let [job-id (.eval jedis dequeue-lua num-keys params)]
+        ;; TODO make the status update part of the script???
+        ;; may require saving statuses outside of the job
+        (jobs/save context job-id {:status "processing"})
+        job-id))))
 
 (defn requeue
   "Puts job-id back onto its queue after it has failed."
