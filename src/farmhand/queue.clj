@@ -90,3 +90,24 @@
       (with-transaction [context context]
         (registry/delete context dead-letter-registry job-id)
         (push context job-id queue)))))
+
+(defn finish-execution
+  [context {job-id :job-id :as job} registry registry-opts]
+  (with-transaction [context context]
+    (registry/delete context job-id in-flight-registry)
+    (registry/add context job-id registry registry-opts)
+    (jobs/save context job)))
+
+(defn in-flight-cleanup
+  "Function for handling jobs that have expired from the in flight registry."
+  [context job-id]
+  (let [job {:job-id job-id
+             :status "failed"
+             :reason "Was in progress for too long"
+             :failed-at (now-millis)}]
+    (finish-execution context job dead-letter-registry {})))
+
+(def registries
+  [{:name in-flight-registry :cleanup-fn in-flight-cleanup}
+   {:name completed-registry :cleanup-fn jobs/delete}
+   {:name dead-letter-registry :cleanup-fn jobs/delete}])

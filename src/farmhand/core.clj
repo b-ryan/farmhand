@@ -74,14 +74,9 @@
   ([context job in unit]
    (schedule/run-in context job in unit)))
 
-(def ^:private base-registries
-  [{:name queue/in-flight-registry :cleanup-fn #(queue/fail %1 %2 :reason "Expired")}
-   {:name queue/completed-registry :cleanup-fn jobs/delete}
-   {:name queue/dead-letter-registry :cleanup-fn jobs/delete}])
-
 (defn assoc-registries
   [context]
-  (assoc context :registries (concat base-registries
+  (assoc context :registries (concat queue/registries
                                      (schedule/registries context))))
 
 (defn create-context

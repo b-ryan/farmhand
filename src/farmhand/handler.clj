@@ -18,9 +18,8 @@
                  :completed-at (now-millis))
       (assoc :registry queue/completed-registry)))
 
-(defn- handle-exception
+(defn- update-for-failure
   [{{:keys [job-id queue] :as job} :job :as request} exception]
-  (log/infof exception "job-id (%s) threw an exception" job-id)
   (if-let [{:keys [delay-time delay-unit] :as retry} (retry/update-retry job)]
     (assoc request
            :job (assoc job :retry retry)
@@ -33,12 +32,9 @@
                        :failed-at (now-millis))
            :registry queue/dead-letter-registry)))
 
-(defn- finish-execution
-  [{:keys [context {job-id :job-id :as job} registry registry-opts] :as response}]
-  (with-transaction [context context]
-    (registry/delete context job-id queue/in-flight-registry)
-    (registry/add context job-id registry registry-opts)
-    (jobs/save context job))
+(defn- handle-response
+  [{:keys [context job registry registry-opts] :as response}]
+  (queue/finish-execution context job registry registry-opts)
   response)
 
 (defn wrap-outer
@@ -52,11 +48,12 @@
   middleware took care of that."
   [handler]
   (fn outer [{:keys [job-id context] :as request}]
-    (finish-execution
+    (handle-response
       (try
         (-> request (assoc :job (jobs/fetch context job-id)) handler)
         (catch Throwable e
           (rethrow-if-fatal e)
-          (handle-exception request e))))))
+          (log/infof e "job-id (%s) threw an exception" job-id)
+          (update-for-failure request e))))))
 
 (def default-handler (wrap-outer execute-job))
