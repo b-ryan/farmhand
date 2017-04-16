@@ -86,3 +86,16 @@
 (defn now-millis
   []
   (System/currentTimeMillis))
+
+(def ^:private multipliers
+  {:milliseconds 1
+   :seconds     1000
+   :minutes  (* 1000 60)        ;; ooo a pyramid
+   :hours   (* 1000 60 60)
+   :days   (* 1000 60 60 24)})
+
+(defn from-now
+  [n unit]
+  {:pre [(get multipliers unit)]}
+  (let [multiplier (get multipliers unit)]
+    (+ (now-millis) (* n multiplier))))

@@ -3,7 +3,7 @@
             [farmhand.jobs :as jobs]
             [farmhand.redis :as r :refer [with-jedis with-transaction]]
             [farmhand.registry :as registry]
-            [farmhand.utils :refer [now-millis]])
+            [farmhand.utils :refer [from-now now-millis]])
   (:import (redis.clients.jedis Jedis Transaction)))
 
 (defn all-queues-key ^String [c] (r/redis-key c "queues"))
@@ -66,30 +66,34 @@
        (mapv :name)))
 
 (def ^:private ^String dequeue-lua (slurp (io/resource "farmhand/dequeue.lua")))
+(def ^:private in-flight-ttl-hours 1)
 
 (defn dequeue
   [context queue-names]
   {:pre [(vector? queue-names)]}
   (let [keys (mapv #(queue-key context %) queue-names)
-        now-str (str (now-millis))
+        in-flight-expiration (from-now in-flight-ttl-hours :hours)
         in-flight-key (registry/registry-key context in-flight-registry)
-        params (r/seq->str-arr (conj keys in-flight-key now-str))
+        params (r/seq->str-arr (conj keys in-flight-key (str in-flight-expiration)))
         num-keys ^Integer (inc (count keys))]
     (with-jedis [{:keys [^Jedis jedis] :as context} context]
-      (let [job-id (.eval jedis dequeue-lua num-keys params)]
+      (when-let [job-id (.eval jedis dequeue-lua num-keys params)]
         ;; TODO make the status update part of the script???
         ;; may require saving statuses outside of the job
         (jobs/save context job-id {:status "processing"})
-        job-id))))
+        ;; We assoc the :job-id just in case there is a situation where the
+        ;; job's body is not in Redis. Perhaps there was a consistency error or
+        ;; something else went wrong. Doing so at least lets the rest of the
+        ;; code know for sure there will be a job-id.
+        (assoc (jobs/fetch context job-id) :job-id job-id)))))
 
 (defn requeue
   "Puts job-id back onto its queue after it has failed."
   [context job-id]
-  (with-jedis [{:keys [jedis] :as context} context]
-    (let [{:keys [queue]} (jobs/fetch context job-id)]
-      (with-transaction [context context]
-        (registry/delete context dead-letter-registry job-id)
-        (push context job-id queue)))))
+  (let [{:keys [queue]} (jobs/fetch context job-id)]
+    (with-transaction [context context]
+      (registry/delete context job-id dead-letter-registry)
+      (push context job-id queue))))
 
 (defn finish-execution
   [context {job-id :job-id :as job} registry registry-opts]

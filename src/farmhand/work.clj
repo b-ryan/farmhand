@@ -8,9 +8,9 @@
 
 (defn run-once
   [{:keys [queues handler] :as context}]
-  (if-let [job-id (->> (queue/queue-order queues)
-                       (queue/dequeue context))]
-    (handler {:job-id job-id :context context})
+  (if-let [job (->> (queue/queue-order queues)
+                    (queue/dequeue context))]
+    (handler {:job job :context context})
     ::no-jobs-available))
 
 (defn- sleep-if-no-jobs

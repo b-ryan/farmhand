@@ -6,7 +6,7 @@
             [farmhand.registry :as registry]
             [farmhand.retry :as retry]
             [farmhand.schedule :as schedule]
-            [farmhand.utils :refer [now-millis rethrow-if-fatal]]))
+            [farmhand.utils :refer [from-now now-millis rethrow-if-fatal]]))
 
 (defn execute-job
   "Executes the job's function with the defined arguments."
@@ -24,7 +24,7 @@
     (assoc request
            :job (assoc job :retry retry)
            :registry (schedule/registry-name queue)
-           :registry-opts {:expire-at (schedule/from-now delay-time delay-unit)})
+           :registry-opts {:expire-at (from-now delay-time delay-unit)})
     (assoc request
            :job (assoc job
                        :status "failed"
@@ -47,10 +47,10 @@
   job will not be marked as either failed or success. It assumes some other
   middleware took care of that."
   [handler]
-  (fn outer [{:keys [job-id context] :as request}]
+  (fn outer [{:keys [{:keys [job-id] :as job} context] :as request}]
     (handle-response
       (try
-        (-> request (assoc :job (jobs/fetch context job-id)) handler)
+        (handler request)
         (catch Throwable e
           (rethrow-if-fatal e)
           (log/infof e "job-id (%s) threw an exception" job-id)

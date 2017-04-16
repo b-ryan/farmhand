@@ -20,16 +20,15 @@
 
 ;; TODO why do these functions take job-id as last arg?
 
-(defn delete
+(defn- delete*
   [context ^String job-id ^String reg-key]
   (with-transaction [{:keys [^Transaction transaction] :as context} context]
     (.zrem transaction reg-key (r/str-arr job-id))))
 
-(defn- remove-with-cleanup-fn
-  [context ^String job-id ^String reg-key cleanup-fn]
-  (with-transaction [context context]
-    (delete context job-id reg-key)
-    (cleanup-fn context job-id)))
+(defn delete
+  [context ^String job-id registry]
+  (with-transaction [{:keys [^Transaction transaction] :as context} context]
+    (.zrem transaction (registry-key context registry) (r/str-arr job-id))))
 
 (def ^:private default-page-size 25)
 
@@ -74,6 +73,12 @@
   [^Jedis jedis ^String reg-key ^String now]
   (-> (.zrangeByScore jedis reg-key "-inf" now (int 0) (int 1))
       (first)))
+
+(defn- remove-with-cleanup-fn
+  [context ^String job-id ^String reg-key cleanup-fn]
+  (with-transaction [context context]
+    (delete* context job-id reg-key)
+    (cleanup-fn context job-id)))
 
 (defn cleanup
   [{:keys [registries] :as context}]

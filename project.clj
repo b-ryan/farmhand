@@ -6,12 +6,12 @@
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [org.clojure/core.async "0.3.441" :exclusions [org.clojure/clojure]]
                  [org.clojure/tools.logging "0.3.1"]
-                 [clj-time "0.13.0"]
                  [redis.clients/jedis "2.9.0"]]
   :global-vars {*warn-on-reflection* true}
   :target-path "target/%s"
   :jvm-opts ["-Duser.timezone=GMT"]
-  :profiles {:dev {:dependencies [[log4j "1.2.17"]]}
+  :profiles {:dev {:dependencies [[log4j "1.2.17"]]
+                   :source-paths ["dev-src"]}
              :1.5 {:dependencies [[org.clojure/clojure "1.5.1"]]}
              :1.6 {:dependencies [[org.clojure/clojure "1.6.0"]]}
              :1.7 {:dependencies [[org.clojure/clojure "1.7.0"]]}

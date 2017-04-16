@@ -5,7 +5,7 @@
             [farmhand.queue :as q]
             [farmhand.redis :as r :refer [with-jedis with-transaction]]
             [farmhand.registry :as registry]
-            [farmhand.utils :refer [now-millis safe-loop]]))
+            [farmhand.utils :refer [from-now]]))
 
 (defn registry-name [queue-name] (str "schedule:" queue-name))
 
@@ -15,7 +15,7 @@
   job."
   [context {job-id :job-id :as job} queue-name at]
   (with-transaction [context context]
-    (registry/add context (registry-name queue-name) job-id :expire-at at)
+    (registry/add context job-id (registry-name queue-name) :expire-at at)
     (jobs/update-props context job {:status "scheduled"})))
 
 (defn run-at
@@ -26,18 +26,6 @@
     (with-transaction [context context]
       (jobs/save context normalized)
       (run-at* context normalized queue-name at))))
-
-(def ^:private multipliers {:milliseconds 1
-                            :seconds 1000
-                            :minutes (* 1000 60)
-                            :hours (* 1000 60 60)
-                            :days (* 1000 60 60 24)})
-
-(defn from-now
-  [n unit]
-  {:pre [(get multipliers unit)]}
-  (let [multiplier (get multipliers unit)]
-    (+ (now-millis) (* n multiplier))))
 
 (defn run-in
   "Schedules a job to run at some time relative to now. See the docs in

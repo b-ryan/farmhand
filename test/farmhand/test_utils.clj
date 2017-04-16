@@ -1,12 +1,11 @@
 (ns farmhand.test-utils
-  (:require [farmhand.config :as cfg]
-            [farmhand.core :refer [assoc-registries]]
+  (:require [farmhand.core :refer [assoc-registries]]
             [farmhand.handler :refer [default-handler]]
-            [farmhand.jobs :as jobs]
             [farmhand.queue :as q]
             [farmhand.redis :as r :refer [with-jedis]]
             [farmhand.registry :refer [registry-key]]
-            [farmhand.schedule :as schedule]))
+            [farmhand.schedule :as schedule])
+  (:import (redis.clients.jedis Jedis)))
 
 (def test-prefix "farmhand-test:")
 
@@ -24,7 +23,7 @@
 
 (defn cleanup-redis
   []
-  (with-jedis [{:keys [jedis]} context]
+  (with-jedis [{:keys [^Jedis jedis]} context]
     (try
       (.eval jedis "return redis.call('del', unpack(redis.call('keys', ARGV[1])))"
              0 (r/str-arr (str test-prefix "*")))
