@@ -22,7 +22,7 @@
   [{{:keys [job-id queue] :as job} :job :as request} exception]
   (if-let [{:keys [delay-time delay-unit] :as retry} (retry/update-retry job)]
     (assoc request
-           :job (assoc job :retry retry)
+           :job (assoc job :retry retry :status "scheduled")
            :registry (schedule/registry-name queue)
            :registry-opts {:expire-at (from-now delay-time delay-unit)})
     (assoc request
