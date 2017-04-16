@@ -27,7 +27,7 @@
     (is (nil? (queue/dequeue tu/context ["default"])))
     (is (= (:status (jobs/fetch tu/context job-id)) "scheduled"))
     (registry/cleanup tu/context)
-    (is (= (queue/dequeue tu/context ["default"]) job-id))))
+    (is (= (:job-id (queue/dequeue tu/context ["default"])) job-id))))
 
 (deftest run-at-job-in-future
   (let [job-id (:job-id (run-at tu/context {:fn-var #'work-fn} later-than-now))]
@@ -42,7 +42,7 @@
     (is (nil? (queue/dequeue tu/context ["default"])))
     (with-redefs [utils/now-millis (constantly (+ fake-now (* 1000 20)))]
       (registry/cleanup tu/context))
-    (is (= (queue/dequeue tu/context ["default"]) job-id))))
+    (is (= (:job-id (queue/dequeue tu/context ["default"])) job-id))))
 
 (deftest run-in-not-ready-yet
   (let [job-id (:job-id (run-in tu/context {:fn-var #'work-fn} 10 :seconds))]

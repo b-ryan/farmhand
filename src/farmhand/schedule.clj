@@ -15,7 +15,7 @@
   job."
   [context {job-id :job-id :as job} queue-name at]
   (with-transaction [context context]
-    (registry/add context job-id (registry-name queue-name) :expire-at at)
+    (registry/add context job-id (registry-name queue-name) {:expire-at at})
     (jobs/update-props context job {:status "scheduled"})))
 
 (defn run-at
