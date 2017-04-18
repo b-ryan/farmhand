@@ -45,7 +45,7 @@
     (with-transaction [context context]
       (let [{:keys [delay-time delay-unit]} retry
             run-at-time (from-now delay-time delay-unit)
-            job (schedule/run-at* context job queue run-at-time)]
+            job (schedule/run-at context job run-at-time)]
         (registry/delete context job-id queue/in-flight-registry)
         (assoc response :job job :handled? true)))
     response))
