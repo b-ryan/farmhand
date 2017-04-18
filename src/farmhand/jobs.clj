@@ -42,25 +42,13 @@
       (utils/update-vals pr-str)))
 
 (defn save
-  "Saves job data in Redis. Can save either the entire or a portion of its
-  keys. For example, you can use this function to update just the status of a
-  job using
-
-    (save context job-id {:status \"something\"})
-
-  You must either provide the job-id as the second argument or the keys being
-  saved should contain the job-id. For example you could also save the status
-  using
-
-    (save context {:job-id job-id :status \"something\"})"
-  ([context {job-id :job-id :as job}]
-   (save context job-id job))
-  ([context job-id properties]
-   ;; The typehint using RedisPipeline here is because using Transaction creates
-   ;; an ambiguous typehint
-   ;; Transaction is used so it can be nested within other transactions
-   (with-transaction [{:keys [^RedisPipeline transaction]} context]
-     (.hmset transaction (job-key context job-id) (prepare-to-save properties)))))
+  [context {job-id :job-id :as job}]
+  ;; The typehint using RedisPipeline here is because using Transaction creates
+  ;; an ambiguous typehint
+  ;; Transaction is used so it can be nested within other transactions
+  (with-transaction [{:keys [^RedisPipeline transaction]} context]
+    (.hmset transaction (job-key context job-id) (prepare-to-save job)))
+  job)
 
 (defn update-props
   "A small wrapper around 'save' that takes a job and some properties, saves

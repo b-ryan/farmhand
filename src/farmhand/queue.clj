@@ -17,7 +17,7 @@
   (with-transaction [{:keys [^Transaction transaction] :as context} context]
     (.sadd transaction (all-queues-key context) (r/str-arr queue-name))
     (.lpush transaction (queue-key context queue-name) (r/str-arr job-id))
-    (jobs/save context job-id {:status "queued"})))
+    (jobs/save context {:job-id job-id :status "queued"})))
 
 (defn describe-queues
   "Returns a list of all queues and their current number of items."
@@ -80,12 +80,42 @@
       (when-let [job-id (.eval jedis dequeue-lua num-keys params)]
         ;; TODO make the status update part of the script???
         ;; may require saving statuses outside of the job
-        (jobs/save context job-id {:status "processing"})
+        (jobs/save context {:job-id job-id :status "processing"})
         ;; We assoc the :job-id just in case there is a situation where the
         ;; job's body is not in Redis. Perhaps there was a consistency error or
         ;; something else went wrong. Doing so at least lets the rest of the
         ;; code know for sure there will be a job-id.
         (assoc (jobs/fetch context job-id) :job-id job-id)))))
+
+(defn- finish
+  [context {job-id :job-id :as job} registry]
+  (let [job (assoc job :stopped-at (now-millis))]
+    (with-transaction [context context]
+      (jobs/save context job)
+      (registry/delete context job-id in-flight-registry)
+      (registry/add context job-id registry))
+    job))
+
+(defn complete
+  [context job]
+  (finish context (assoc job :status "complete") completed-registry))
+
+(defn fail
+  [context job]
+  (finish context (assoc job :status "failed") dead-letter-registry))
+
+(defn in-flight-cleanup
+  "Function for handling jobs that have expired from the in flight registry."
+  [context job-id]
+  ;; this takes advantage of the fact that we can save a subset of the
+  ;; job properties when saving the job. other keys will just be left
+  ;; alone
+  (fail context {:job-id job-id :reason "Was in progress for too long"}))
+
+(def registries
+  [{:name in-flight-registry :cleanup-fn in-flight-cleanup}
+   {:name completed-registry :cleanup-fn jobs/delete}
+   {:name dead-letter-registry :cleanup-fn jobs/delete}])
 
 (defn requeue
   "Puts job-id back onto its queue after it has failed."
@@ -94,24 +124,3 @@
     (with-transaction [context context]
       (registry/delete context job-id dead-letter-registry)
       (push context job-id queue))))
-
-(defn finish-execution
-  [context {job-id :job-id :as job} registry registry-opts]
-  (with-transaction [context context]
-    (registry/delete context job-id in-flight-registry)
-    (registry/add context job-id registry registry-opts)
-    (jobs/save context job)))
-
-(defn in-flight-cleanup
-  "Function for handling jobs that have expired from the in flight registry."
-  [context job-id]
-  (let [job {:job-id job-id
-             :status "failed"
-             :reason "Was in progress for too long"
-             :failed-at (now-millis)}]
-    (finish-execution context job dead-letter-registry {})))
-
-(def registries
-  [{:name in-flight-registry :cleanup-fn in-flight-cleanup}
-   {:name completed-registry :cleanup-fn jobs/delete}
-   {:name dead-letter-registry :cleanup-fn jobs/delete}])

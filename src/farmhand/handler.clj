@@ -10,32 +10,13 @@
 
 (defn execute-job
   "Executes the job's function with the defined arguments."
-  [{{fn-var :fn-var args :args} :job :as request}]
-  (-> request
-      (update-in [:job] assoc
-                 :result (:farmhand/result (apply fn-var args))
-                 :status "complete"
-                 :completed-at (now-millis))
-      (assoc :registry queue/completed-registry)))
-
-(defn- update-for-failure
-  [{{:keys [job-id queue] :as job} :job :as request} exception]
-  (if-let [{:keys [delay-time delay-unit] :as retry} (retry/update-retry job)]
-    (assoc request
-           :job (assoc job :retry retry :status "scheduled")
-           :registry (schedule/registry-name queue)
-           :registry-opts {:expire-at (from-now delay-time delay-unit)})
-    (assoc request
-           :job (assoc job
-                       :status "failed"
-                       :reason (str exception)
-                       :failed-at (now-millis))
-           :registry queue/dead-letter-registry)))
-
-(defn- handle-response
-  [{:keys [context job registry registry-opts] :as response}]
-  (queue/finish-execution context job registry registry-opts)
-  response)
+  [{{fn-var :fn-var args :args job-id :job-id} :job :as request}]
+  (try
+    (update-in request [:job] assoc :result (:farmhand/result (apply fn-var args)))
+    (catch Throwable e
+      (rethrow-if-fatal e)
+      (log/infof e "job-id (%s) threw an exception" job-id)
+      (assoc request :exception e))))
 
 (defn wrap-outer
   "Middleware which performs the basics of the job flow. It marks the job as in
@@ -47,13 +28,11 @@
   job will not be marked as either failed or success. It assumes some other
   middleware took care of that."
   [handler]
-  (fn outer [{:keys [{:keys [job-id] :as job} context] :as request}]
-    (handle-response
-      (try
-        (handler request)
-        (catch Throwable e
-          (rethrow-if-fatal e)
-          (log/infof e "job-id (%s) threw an exception" job-id)
-          (update-for-failure request e))))))
+  (fn outer [request]
+    (let [{:keys [context job exception handled?] :as response} (handler request)]
+      (when-not handled?
+        (if exception
+          (queue/fail context (assoc job :reason (str exception)))
+          (queue/complete context job))))))
 
-(def default-handler (wrap-outer execute-job))
+(def default-handler (-> execute-job retry/wrap-retry wrap-outer))

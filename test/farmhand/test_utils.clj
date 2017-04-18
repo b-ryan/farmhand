@@ -12,7 +12,7 @@
 (def context (-> {:jedis-pool (r/create-pool)
                   :prefix test-prefix
                   :queues [{:name "default"}]
-                  :handler default-handler}
+                  :handler #'default-handler}
                  assoc-registries))
 
 (def ^String queue-key (q/queue-key context "default"))
