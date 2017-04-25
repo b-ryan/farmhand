@@ -7,7 +7,7 @@
             [farmhand.registry :as registry]
             [farmhand.utils :refer [from-now]]))
 
-(defn registry-name [queue-name] (str "schedule:" queue-name))
+(def registry "scheduled")
 
 (defn run-at
   "Normalizes a job schedules it to run at some time in the future. Returns the
@@ -15,7 +15,7 @@
   [context job at]
   (let [{queue-name :queue job-id :job-id :as job} (jobs/normalize job)]
     (with-transaction [context context]
-      (registry/add context job-id (registry-name queue-name) {:expire-at at})
+      (registry/add context job-id registry {:expire-at at})
       (jobs/save context (assoc job :status "scheduled")))))
 
 (defn run-in
@@ -24,8 +24,7 @@
   [context job n unit]
   (run-at context job (from-now n unit)))
 
-(defn registries
-  [{:keys [queues] :as context}]
-  (for [{queue-name :name} queues]
-    {:name (registry-name queue-name)
-     :cleanup-fn #(q/push %1 %2 queue-name)}))
+(defn schedule
+  "Function for handling jobs that have expired from the schedule registry."
+  [context {:keys [job-id queue]}]
+  (q/push context job-id queue))

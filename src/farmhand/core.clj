@@ -74,10 +74,11 @@
   ([context job in unit]
    (schedule/run-in context job in unit)))
 
-(defn assoc-registries
-  [context]
-  (assoc context :registries (concat queue/registries
-                                     (schedule/registries context))))
+(def registries
+  [{:name queue/in-flight-registry :cleanup-fn queue/in-flight-cleanup}
+   {:name queue/completed-registry :cleanup-fn jobs/delete}
+   {:name queue/dead-letter-registry :cleanup-fn jobs/delete}
+   {:name schedule/registry :cleanup-fn schedule/schedule}])
 
 (defn create-context
   ([] (create-context {}))
@@ -86,7 +87,7 @@
                       :jedis-pool (or pool (redis/create-pool (config/redis redis)))
                       :prefix (config/prefix prefix)
                       :handler (or handler handler/default-handler)}
-                     assoc-registries)]
+                     (assoc :registries registries))]
      (reset! context* context)
      context)))
 

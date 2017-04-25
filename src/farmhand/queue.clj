@@ -106,16 +106,8 @@
 
 (defn in-flight-cleanup
   "Function for handling jobs that have expired from the in flight registry."
-  [context job-id]
-  ;; this takes advantage of the fact that we can save a subset of the
-  ;; job properties when saving the job. other keys will just be left
-  ;; alone
-  (fail context {:job-id job-id :reason "Was in progress for too long"}))
-
-(def registries
-  [{:name in-flight-registry :cleanup-fn in-flight-cleanup}
-   {:name completed-registry :cleanup-fn jobs/delete}
-   {:name dead-letter-registry :cleanup-fn jobs/delete}])
+  [context job]
+  (fail context (assoc job :reason "Was in progress for too long")))
 
 (defn requeue
   "Puts job-id back onto its queue after it has failed."

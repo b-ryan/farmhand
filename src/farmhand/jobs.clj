@@ -64,6 +64,6 @@
             (assoc-fn-var))))
 
 (defn delete
-  [context job-id]
+  [context {:keys [job-id]}]
   (with-transaction [{:keys [^RedisPipeline transaction]} context]
     (.del transaction (job-key context job-id))))

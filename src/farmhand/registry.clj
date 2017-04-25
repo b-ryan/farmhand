@@ -72,9 +72,10 @@
 
 (defn- remove-with-cleanup-fn
   [context ^String job-id ^String reg-key cleanup-fn]
-  (with-transaction [context context]
-    (delete* context job-id reg-key)
-    (cleanup-fn context job-id)))
+  (let [job (jobs/fetch context job-id)]
+    (with-transaction [context context]
+      (delete* context job-id reg-key)
+      (cleanup-fn context job))))
 
 (defn cleanup
   [{:keys [registries] :as context}]
@@ -88,10 +89,7 @@
             (do
               (remove-with-cleanup-fn context job-id reg-key cleanup-fn)
               (recur (inc num-removed)))
-            (do
-              (.unwatch jedis)
-              (when (> num-removed 0)
-                (log/debugf "Removed %d items from %s" num-removed reg-key)))))))))
+            (.unwatch jedis)))))))
 
 (def ^:private loop-sleep-ms (* 1000 60))
 
