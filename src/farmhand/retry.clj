@@ -7,13 +7,13 @@
             [farmhand.schedule :as schedule]
             [farmhand.utils :refer [from-now now-millis rethrow-if-fatal]]))
 
-(defmulti update-retry
+(defmulti update-job
   "Multimethod which takes a job containing a retry map and returns a new job
   with the retry key updated. When the :retry is set to nil, the job will not
   be retried."
   (comp :strategy :retry))
 
-(defmethod update-retry nil [job] (assoc job :retry nil))
+(defmethod update-job nil [job] (assoc job :retry nil))
 
 ;; 0   1   2   3   4    5    6    7    =  8 attempts
 ;; 1 + 2 + 4 + 8 + 16 + 32 + 64 + 128  =  ~10 days
@@ -23,7 +23,7 @@
    :coefficient 1
    :delay-unit :hours})
 
-(defmethod update-retry "backoff"
+(defmethod update-job "backoff"
   ;; A retry strategy that uses an exponential backoff with a maximum number
   ;; of retries. By default, will cause the first retry to occur in roughly 1
   ;; hour, the next in 2 hours, the next in 4 hours, etc. until the maximum
@@ -57,6 +57,6 @@
     (let [{:keys [exception handled?] :as response} (handler request)]
       (if (and exception (not handled?))
         (-> response
-            (update-in [:job] update-retry)
+            (update-in [:job] update-job)
             handle-retry)
         response))))

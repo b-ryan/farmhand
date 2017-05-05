@@ -53,7 +53,7 @@
 (def fatal? "Opposite of catchable?" (complement catchable?))
 (defn rethrow-if-fatal [e] (when (fatal? e) (throw e)))
 
-(defn pause-for-exception
+(defn- pause-for-exception
   [e]
   (log/error e "unexpected exception, going to pause execution")
   (Thread/sleep (* 1000 2)))

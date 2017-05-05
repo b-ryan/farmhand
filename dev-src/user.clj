@@ -1,7 +1,9 @@
 (ns user
   (:require [clojure.tools.logging :as log]
             [farmhand.core :refer :all]
-            [farmhand.handler :as handler]))
+            [farmhand.handler :as handler]
+            [farmhand.redis :as r]
+            [farmhand.utils :refer [now-millis]]))
 
 
 (defn wrap-debug
@@ -27,6 +29,6 @@
                               :delay-unit :minutes
                               :max-attempts 2}})
 
-  (schedule/run-in @context* {:fn-var #'slow-job :args ["i am slow"]} 1 :minutes)
+  (run-in @context* {:fn-var #'slow-job :args ["i am slow"]} 1 :minutes)
 
   (stop-server))

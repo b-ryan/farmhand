@@ -2,7 +2,7 @@
   (:require [clojure.core.async :as async]
             [clojure.tools.logging :as log]
             [farmhand.queue :as queue]
-            [farmhand.utils :refer [safe-loop]]))
+            [farmhand.utils :refer [safe-loop-thread]]))
 
 (def ^:private no-jobs-sleep-ms 50)
 
@@ -23,12 +23,10 @@
 
 (defn work-thread
   [context stop-chan]
-  (async/thread
-    (log/info "in main loop")
-    (safe-loop
-      (async/alt!!
-        stop-chan :exit-loop
-        :default (-> (run-once context)
-                     (sleep-if-no-jobs))
-        :priority true))
-    (log/info "exiting main loop")))
+  (safe-loop-thread
+    "main loop"
+    (async/alt!!
+      stop-chan :exit-loop
+      :default (-> (run-once context)
+                   (sleep-if-no-jobs))
+      :priority true)))

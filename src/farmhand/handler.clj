@@ -30,9 +30,10 @@
   [handler]
   (fn outer [request]
     (let [{:keys [context job exception handled?] :as response} (handler request)]
-      (when-not handled?
+      (if-not handled?
         (if exception
           (queue/fail context (assoc job :reason (str exception)))
-          (queue/complete context job))))))
+          (queue/complete context job))
+        response))))
 
 (def default-handler (-> execute-job retry/wrap-retry wrap-outer))
