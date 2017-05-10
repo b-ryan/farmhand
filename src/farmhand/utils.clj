@@ -1,10 +1,6 @@
 (ns farmhand.utils
   (:require [clojure.tools.logging :as log]))
 
-(defn update-map
-  [m f]
-  (into {} (for [[k v] m] (f k v))))
-
 (defn update-keys
   "Applies a function to all keys of a map and returns a new map.
 
@@ -25,12 +21,6 @@
   [m f]
   (into {} (for [[k v] m] [k (f v)])))
 
-(defn filter-map-keys
-  "Like filter, but for maps. Accepts a map and a function and returns a new
-  map. Only keys where (f k) is true will be in the returned map."
-  [m f]
-  (into {} (filter (fn [[k _]] (f k)) m)))
-
 (defn filter-map-vals
   "Like filter, but for maps. Accepts a map and a function and returns a new
   map. Only values where (f v) is true will be in the returned map."
@@ -48,7 +38,6 @@
     (instance? AssertionError e) true
     (instance? Exception e) true
     :else false))
-
 
 (def fatal? "Opposite of catchable?" (complement catchable?))
 (defn rethrow-if-fatal [e] (when (fatal? e) (throw e)))

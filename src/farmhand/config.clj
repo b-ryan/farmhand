@@ -1,6 +1,5 @@
 (ns farmhand.config
   (:require [clojure.edn :as edn]
-            [clojure.string :as string]
             [clojure.java.io :as io]
             [farmhand.utils :as utils]))
 

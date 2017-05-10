@@ -1,9 +1,7 @@
 (ns farmhand.schedule
-  (:require [clojure.core.async :as async]
-            [clojure.tools.logging :as log]
-            [farmhand.jobs :as jobs]
+  (:require [farmhand.jobs :as jobs]
             [farmhand.queue :as q]
-            [farmhand.redis :as r :refer [with-jedis with-transaction]]
+            [farmhand.redis :refer [with-transaction]]
             [farmhand.registry :as registry]
             [farmhand.utils :refer [from-now]]))
 

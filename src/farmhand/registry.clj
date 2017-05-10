@@ -1,6 +1,5 @@
 (ns farmhand.registry
   (:require [clojure.core.async :as async]
-            [clojure.tools.logging :as log]
             [farmhand.jobs :as jobs]
             [farmhand.redis :as r :refer [with-jedis with-transaction]]
             [farmhand.utils :refer [now-millis safe-loop-thread]])

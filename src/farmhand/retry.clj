@@ -1,11 +1,4 @@
-(ns farmhand.retry
-  (:require [clojure.tools.logging :as log]
-            [farmhand.jobs :as jobs]
-            [farmhand.redis :refer [with-transaction]]
-            [farmhand.queue :as queue]
-            [farmhand.registry :as registry]
-            [farmhand.schedule :as schedule]
-            [farmhand.utils :refer [from-now now-millis rethrow-if-fatal]]))
+(ns farmhand.retry)
 
 (defmulti update-job
   "Multimethod which takes a job containing a retry map and returns a new job
@@ -38,25 +31,3 @@
              (assoc retry
                     :num-attempts (inc num-attempts)
                     :delay-time (int delay-time))))))
-
-(defn- handle-retry
-  [{{:keys [job-id queue retry] :as job} :job context :context :as response}]
-  (if retry
-    (with-transaction [context context]
-      (let [{:keys [delay-time delay-unit]} retry
-            run-at-time (from-now delay-time delay-unit)
-            job (schedule/run-at context job run-at-time)]
-        (registry/delete context job-id queue/in-flight-registry)
-        (assoc response :job job :handled? true)))
-    response))
-
-(defn wrap-retry
-  "Middleware for automatically scheduling jobs to be retried."
-  [handler]
-  (fn [request]
-    (let [{:keys [exception handled?] :as response} (handler request)]
-      (if (and exception (not handled?))
-        (-> response
-            (update-in [:job] update-job)
-            handle-retry)
-        response))))

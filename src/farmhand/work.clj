@@ -1,6 +1,5 @@
 (ns farmhand.work
   (:require [clojure.core.async :as async]
-            [clojure.tools.logging :as log]
             [farmhand.queue :as queue]
             [farmhand.utils :refer [safe-loop-thread]]))
 
