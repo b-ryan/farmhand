@@ -1,26 +1,10 @@
 # Change Log
 
-## Unreleased
+## 0.9.0-SNAPSHOT
 
-FEATURES
-
-- Job maps are updated and passed through all the "handler" code.
-
-FIXES
-
-- In flight jobs that expire will be marked as failed rather than deleted.
-- Job data will no longer expire 60 days after the job was created. The data
-  will be deleted when the job expires from the "dead" or "completed" queue.
-- Persistent exceptions in the "work" thread will no longer prevent the thread
-  from exiting when shutting down the server.
-- Requeuing jobs previously did not delete the job from the dead letter
-  registry.
-
-BREAKING
-
-- The Redis key structure has changed for "registries" - like the dead letters,
-  completed jobs, in flight jobs, and scheduled jobs.
-- Cleanup-related functions in the schedule namespace are gone.
+This is a major new release! A huge portion of the codebase and the way
+Farmhand works has been redone. Data is stored in Redis differently. Since no
+one else is using this I'm just going to leave it at that.
 
 ## 0.8.0
 
