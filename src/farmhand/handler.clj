@@ -32,7 +32,6 @@
   "Middleware for automatically scheduling jobs to be retried."
   [handler]
   (fn [request]
-    {:post [(map? %)]}
     (let [{:keys [exception handled?] :as response} (handler request)]
       (if (and exception (not handled?))
         (-> response
@@ -52,10 +51,9 @@
   [handler]
   (fn outer [request]
     (let [{:keys [context job exception handled?] :as response} (handler request)]
-      (if-not handled?
-        (if exception
-          (queue/fail context (assoc job :reason (str exception)))
-          (queue/complete context job))
-        response))))
+      (cond
+        handled? response
+        exception (queue/fail context (assoc job :reason (str exception)))
+        :else (queue/complete context job)))))
 
 (def default-handler (-> execute-job wrap-retry wrap-outer))

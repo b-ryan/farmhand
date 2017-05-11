@@ -21,6 +21,22 @@
   [m f]
   (into {} (for [[k v] m] [k (f v)])))
 
+(defn map-xform
+  "Given a map 'm' and a map 'key-fns' of keys to functions, applies each
+  function in 'key-fns' to 'm' where the keys in 'm' and 'key-fns' match.
+
+  Example:
+
+  (map-xform {:a 1 :b 2 :c 3} {:a inc :b str})
+  => {:a 2 :b \"2\" :c 3}"
+  [m key-fns]
+  (reduce (fn [new-m [k f]]
+            (if (contains? new-m k)
+              (update-in new-m [k] f)
+              new-m))
+          m
+          key-fns))
+
 (defn filter-map-vals
   "Like filter, but for maps. Accepts a map and a function and returns a new
   map. Only values where (f v) is true will be in the returned map."
@@ -84,3 +100,11 @@
   {:pre [(get multipliers unit)]}
   (let [multiplier (get multipliers unit)]
     (+ (now-millis) (* n multiplier))))
+
+(defn map-seq "Like seq, but for maps." [m] (if (empty? m) nil m))
+
+(defn read-string-safe
+  "Like read-string, but if there is an exception reading the string, returns
+  nil."
+  [s]
+  (try (read-string s) (catch Exception e nil)))

@@ -11,6 +11,7 @@
   "Normalizes a job schedules it to run at some time in the future. Returns the
   updated job. See the docs in farmhand.core/run-at for more details."
   [context job at]
+  (jobs/throw-if-invalid job)
   (let [{queue-name :queue job-id :job-id :as job} (jobs/normalize job)]
     (with-transaction [context context]
       (registry/add context job-id registry {:expire-at at})

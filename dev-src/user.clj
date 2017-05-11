@@ -2,6 +2,7 @@
   (:require [clojure.tools.logging :as log]
             [farmhand.core :refer :all]
             [farmhand.handler :as handler]
+            [farmhand.jobs :as jobs]
             [farmhand.redis :as r]
             [farmhand.utils :refer [now-millis]]))
 

@@ -34,6 +34,7 @@
   ([job]
    (enqueue @context* job))
   ([context job]
+   (jobs/throw-if-invalid job)
    (let [{:keys [job-id queue] :as job} (jobs/normalize job)]
      (with-transaction [context context]
        (jobs/save context job)

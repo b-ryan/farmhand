@@ -44,12 +44,12 @@
   (or override
       (merge* ["FARMHAND_NUM_WORKERS" :int] [:num-workers] default-num-workers)))
 
-(def ^:private default-queues [{:name "default"}])
+(def default-queue "default")
 
 (defn queues
   [override]
   (or override
-      (merge* ["FARMHAND_QUEUES_EDN" edn/read-string] [:queues] default-queues)))
+      (merge* ["FARMHAND_QUEUES_EDN" edn/read-string] [:queues] [{:name default-queue}])))
 
 (def default-prefix "farmhand:")
 
