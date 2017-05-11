@@ -5,7 +5,6 @@
             [farmhand.jobs :as jobs]
             [farmhand.queue :as q]
             [farmhand.redis :refer [with-jedis]]
-            [farmhand.schedule :as s]
             [farmhand.work :as work]
             [farmhand.retry :as retry]
             [farmhand.test-utils :as tu])

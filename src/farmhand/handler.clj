@@ -4,7 +4,6 @@
             [farmhand.redis :refer [with-transaction]]
             [farmhand.registry :as registry]
             [farmhand.retry :as retry]
-            [farmhand.schedule :as schedule]
             [farmhand.utils :refer [from-now rethrow-if-fatal]]))
 
 (defn execute-job
@@ -23,7 +22,7 @@
     (with-transaction [context context]
       (let [{:keys [delay-time delay-unit]} retry
             run-at-time (from-now delay-time delay-unit)
-            job (schedule/run-at context job run-at-time)]
+            job (queue/run-at context job run-at-time)]
         (registry/delete context job-id queue/in-flight-registry)
         (assoc response :job job :handled? true)))
     response))

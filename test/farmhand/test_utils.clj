@@ -3,8 +3,7 @@
             [farmhand.handler :refer [default-handler]]
             [farmhand.queue :as q]
             [farmhand.redis :as r :refer [with-jedis]]
-            [farmhand.registry :refer [registry-key]]
-            [farmhand.schedule :as schedule])
+            [farmhand.registry :refer [registry-key]])
   (:import (redis.clients.jedis Jedis)))
 
 (def test-prefix "farmhand-test:")
@@ -19,7 +18,7 @@
 (def ^String completed-key (registry-key context q/completed-registry))
 (def ^String dead-key (registry-key context q/dead-letter-registry))
 (def ^String in-flight-key (registry-key context q/in-flight-registry))
-(def ^String schedule-key (registry-key context schedule/registry))
+(def ^String schedule-key (registry-key context q/scheduled-registry))
 
 (defn cleanup-redis
   []

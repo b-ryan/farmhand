@@ -6,7 +6,6 @@
             [farmhand.queue :as queue]
             [farmhand.redis :as redis :refer [with-transaction]]
             [farmhand.registry :as registry]
-            [farmhand.schedule :as schedule]
             [farmhand.work :as work]))
 
 (defonce
@@ -52,9 +51,9 @@
 
   Returns the updated job."
   ([job at]
-   (schedule/run-at @context* job at))
+   (queue/run-at @context* job at))
   ([context job at]
-   (schedule/run-at context job at)))
+   (queue/run-at context job at)))
 
 (defn run-in
   "Schedules a job to be run at some time from now. Like run-at, the job will
@@ -71,15 +70,15 @@
 
   Returns the updated job."
   ([job in unit]
-   (schedule/run-in @context* job in unit))
+   (queue/run-in @context* job in unit))
   ([context job in unit]
-   (schedule/run-in context job in unit)))
+   (queue/run-in context job in unit)))
 
 (def registries
   [{:name queue/in-flight-registry :cleanup-fn queue/in-flight-cleanup}
+   {:name queue/scheduled-registry :cleanup-fn queue/scheduled-cleanup}
    {:name queue/completed-registry :cleanup-fn jobs/delete}
-   {:name queue/dead-letter-registry :cleanup-fn jobs/delete}
-   {:name schedule/registry :cleanup-fn schedule/schedule}])
+   {:name queue/dead-letter-registry :cleanup-fn jobs/delete}])
 
 (defn create-context
   ([] (create-context {}))

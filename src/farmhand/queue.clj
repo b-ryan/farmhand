@@ -11,6 +11,7 @@
 (def in-flight-registry "inflight")
 (def completed-registry "completed")
 (def dead-letter-registry "dead")
+(def scheduled-registry "scheduled")
 
 (defn push
   [context job-id queue-name]
@@ -116,3 +117,24 @@
     (with-transaction [context context]
       (registry/delete context job-id dead-letter-registry)
       (push context job-id queue))))
+
+(defn run-at
+  "Normalizes a job and schedules it to run at some time in the future. Returns
+  the updated job. See the docs in farmhand.core/run-at for more details."
+  [context job at]
+  (jobs/throw-if-invalid job)
+  (let [{queue-name :queue job-id :job-id :as job} (jobs/normalize job)]
+    (with-transaction [context context]
+      (registry/add context job-id scheduled-registry {:expire-at at})
+      (jobs/save context (assoc job :status "scheduled")))))
+
+(defn run-in
+  "Schedules a job to run at some time relative to now. See the docs in
+  farmhand.core/run-in for more details."
+  [context job n unit]
+  (run-at context job (from-now n unit)))
+
+(defn scheduled-cleanup
+  "Function for handling jobs that have expired from the schedule registry."
+  [context {:keys [job-id queue]}]
+  (push context job-id queue))

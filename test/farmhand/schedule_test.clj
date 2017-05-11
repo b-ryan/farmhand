@@ -4,7 +4,6 @@
             [farmhand.jobs :as jobs]
             [farmhand.queue :as queue]
             [farmhand.registry :as registry]
-            [farmhand.schedule :as schedule]
             [farmhand.test-utils :as tu]
             [farmhand.utils :as utils]))
 
