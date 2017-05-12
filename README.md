@@ -13,7 +13,7 @@ This project is largely inspired by
 [Sidekiq](https://github.com/mperham/sidekiq) and
 [RQ](https://github.com/nvie/rq).
 
-**Warning** This library is in an alpha state and subject to change.
+**Warning** This library is beta software and is subject to change.
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
@@ -33,7 +33,7 @@ This project is largely inspired by
 Leiningen:
 
 ```
-[com.buckryan/farmhand "0.8.0"]
+[com.buckryan/farmhand "0.9.0"]
 ```
 
 ## Usage
@@ -70,8 +70,7 @@ you the most common usage.
 
 ## Features
 
-- Reliable - jobs will never be lost. Dequeue operations are performed using a
-  Lua
+- Reliable insofar as Redis is. Dequeue operations are performed using a Lua
   [script](https://github.com/b-ryan/farmhand/blob/master/resources/farmhand/dequeue.lua)
   which Redis guarantees to be
   [atomic](https://redis.io/commands/eval#atomicity-of-scripts).
@@ -82,8 +81,8 @@ you the most common usage.
   [Middleware](https://github.com/b-ryan/farmhand/wiki/Middleware) docs.
 - Jobs can be scheduled to run at a later time. The docs are
   [here](https://github.com/b-ryan/farmhand/wiki/Scheduling)
-- Automatic job retrying. Currently this is not enabled by default but is as
-  simple as `(enqueue {:fn-var #'job-function :retry {:strategy "backoff"}})`
+- Automatic job retrying. It's as simple as
+  `(enqueue {:fn-var #'job-function :retry {:strategy "backoff"}})`
   which will cause your job to retry 8 times over about 10 days. The retry
   mechanism is also fully customizable.
   [Docs](https://github.com/b-ryan/farmhand/wiki/Retrying-Jobs).
@@ -98,8 +97,8 @@ API docs are available [here](http://farmhand-clj.com/codox/index.html).
 ## Web Interface
 
 The [Farmhand UI](https://github.com/b-ryan/farmhand-ui) project provides a web
-interface for Farmhand. Hop over to that project to download. Here's a preview
-of what it looks like:
+interface for Farmhand. Hop over to that project to get started. Here's a
+preview of what it looks like:
 
 ![Screenshot](https://github.com/b-ryan/farmhand-ui/raw/master/preview.png)
 

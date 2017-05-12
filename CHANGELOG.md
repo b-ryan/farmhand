@@ -1,6 +1,6 @@
 # Change Log
 
-## 0.9.0-SNAPSHOT
+## 0.9.0
 
 This is a major new release! A huge portion of the codebase and the way
 Farmhand works has been redone. Data is stored in Redis differently. Since no
