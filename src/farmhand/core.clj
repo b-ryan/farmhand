@@ -81,6 +81,16 @@
    {:name queue/dead-letter-registry :cleanup-fn jobs/delete}])
 
 (defn create-context
+  "Creates a Farmhand context, which can be thought of as the Farmhand client.
+  This map is used to store various options that are used throughout the code.
+  Available options are:
+
+  :queues
+  :jedis-pool
+  :prefix
+  :handler
+
+  More info on these options can be found in the Farmhand wiki."
   ([] (create-context {}))
   ([{:keys [handler queues redis pool prefix]}]
    (let [context (-> {:queues (config/queues queues)
@@ -92,6 +102,10 @@
      context)))
 
 (defn start-server
+  "Creates a Farmhand server. If called with no arguments, will create a
+  server running 2 worker threads. If no context is given, this function
+  also creates one. All options passed to the function are passed directly
+  to the create-context function."
   ([] (start-server {}))
   ([{:keys [context num-workers] :as opts}]
    (let [context (or context (create-context opts))

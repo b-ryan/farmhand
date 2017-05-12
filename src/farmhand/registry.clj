@@ -10,10 +10,20 @@
 (def ^:private default-ttl-ms (* 1000 60 60 24 60)) ;; 60 days
 (defn- expiration [ttl-ms] (+ (now-millis) (or ttl-ms default-ttl-ms)))
 
+(defn add
+  [context ^String job-id ^String registry & [{:keys [ttl-ms expire-at]}]]
+  (let [exp (double (or expire-at (expiration ttl-ms)))]
+    (with-transaction [{:keys [^RedisPipeline transaction]} context]
+      (.zadd transaction (registry-key context registry) exp job-id))))
+
 (defn- delete*
   [context ^String job-id ^String reg-key]
   (with-transaction [{:keys [^Transaction transaction] :as context} context]
     (.zrem transaction reg-key (r/str-arr job-id))))
+
+(defn delete
+  [context job-id registry]
+  (delete* context job-id (registry-key context registry)))
 
 (def ^:private default-page-size 25)
 
@@ -39,16 +49,6 @@
         (Math/ceil)
         (int)
         (dec))))
-
-(defn add
-  [context ^String job-id ^String registry & [{:keys [ttl-ms expire-at]}]]
-  (let [exp (double (or expire-at (expiration ttl-ms)))]
-    (with-transaction [{:keys [^RedisPipeline transaction]} context]
-      (.zadd transaction (registry-key context registry) exp job-id))))
-
-(defn delete
-  [context job-id registry]
-  (delete* context job-id (registry-key context registry)))
 
 (defn page
   [context reg-name {:keys [page] :as options}]
