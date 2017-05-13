@@ -82,7 +82,7 @@ you the most common usage.
 - Jobs can be scheduled to run at a later time. The docs are
   [here](https://github.com/b-ryan/farmhand/wiki/Scheduling)
 - Automatic job retrying. It's as simple as
-  `(enqueue {:fn-var #'job-function :retry {:strategy "backoff"}})`
+  `(enqueue {:fn-var #'job-function :retry {:strategy :backoff}})`
   which will cause your job to retry 8 times over about 10 days. The retry
   mechanism is also fully customizable.
   [Docs](https://github.com/b-ryan/farmhand/wiki/Retrying-Jobs).

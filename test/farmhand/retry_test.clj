@@ -15,7 +15,7 @@
 (defn fail [] (throw (ex-info "foo" {:a 2})))
 
 (deftest failures-handled-with-retry
-  (let [job-id (fc/enqueue tu/context {:fn-var #'fail :retry {:strategy "backoff"}})]
+  (let [job-id (fc/enqueue tu/context {:fn-var #'fail :retry {:strategy :backoff}})]
     (work/run-once tu/context)
     (with-jedis [{:keys [^Jedis jedis]} tu/context]
       (testing "job was scheduled to be run again"
@@ -28,7 +28,7 @@
         (is (= (:status (jobs/fetch tu/context job-id)) "scheduled"))))))
 
 (deftest max-attempts-reached
-  (let [job-id (fc/enqueue tu/context {:fn-var #'fail :retry {:strategy "backoff" :max-attempts 1}})]
+  (let [job-id (fc/enqueue tu/context {:fn-var #'fail :retry {:strategy :backoff :max-attempts 1}})]
     (work/run-once tu/context)
     (with-jedis [{:keys [^Jedis jedis]} tu/context]
       (testing "job was scheduled to be run again"

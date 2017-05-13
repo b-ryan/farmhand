@@ -18,9 +18,9 @@
 
 (defn- handle-retry
   [{{:keys [job-id queue retry] :as job} :job context :context :as response}]
-  (if retry
+  (if (:state retry)
     (with-transaction [context context]
-      (let [{:keys [delay-time delay-unit]} retry
+      (let [{:keys [delay-time delay-unit]} (:state retry)
             run-at-time (from-now delay-time delay-unit)
             job (queue/run-at context job run-at-time)]
         (registry/delete context job-id queue/in-flight-registry)

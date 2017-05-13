@@ -26,7 +26,7 @@
   (enqueue @context* {:fn-var #'slow-job :args ["arg"]})
   (enqueue @context* {:fn-var #'failing-job :args ["fail"]})
   (enqueue @context* {:fn-var #'failing-job :args ["fail"]
-                      :retry {:strategy "backoff"
+                      :retry {:strategy :backoff
                               :delay-unit :minutes
                               :max-attempts 2}})
 
