@@ -13,7 +13,7 @@ This project is largely inspired by
 [Sidekiq](https://github.com/mperham/sidekiq) and
 [RQ](https://github.com/nvie/rq).
 
-**Warning** This library is beta software and is subject to change.
+**Warning** This library is beta software and the API is subject to change.
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
@@ -32,8 +32,8 @@ This project is largely inspired by
 
 Leiningen:
 
-```
-[com.buckryan/farmhand "0.9.0"]
+```clojure
+[com.buckryan/farmhand "0.9.1"]
 ```
 
 ## Usage
@@ -43,12 +43,12 @@ Before starting, you need to have a Redis server running. Visit
 on localhost.
 
 Farmhand is designed for both ease of use and power. Below is an example showing
-you the most common usage.
+you the most common usage, but be sure to check out the
+[Wiki](https://github.com/b-ryan/farmhand/wiki) to see what else it can do.
 
 ```clojure
-(ns my.namespace
-  ;; STEP 1: Require the Farmhand namespace
-  (:require [farmhand.core :as farmhand]))
+;; STEP 1: Require the Farmhand namespace
+(require '[farmhand.core :as farmhand])
 
 ;; STEP 2: Instantiate a Farmhand server with 4 workers.
 (farmhand/start-server {:redis {:host "localhost"}
@@ -57,8 +57,10 @@ you the most common usage.
 ;; STEP 3: Jobs are regular ol' Clojure functions:
 (defn my-long-running-function
   [a b]
+  (println "starting long-running function")
   (Thread/sleep 20000)
-  (* a b))
+  (println "exiting long-running function")
+  {:farmhand/result (* a b)})
 
 ;; STEP 4: Queue that job! It will be processed by the running Farmhand server.
 (farmhand/enqueue {:fn-var #'my-long-running-function
@@ -82,9 +84,13 @@ you the most common usage.
 - Jobs can be scheduled to run at a later time. The docs are
   [here](https://github.com/b-ryan/farmhand/wiki/Scheduling)
 - Automatic job retrying. It's as simple as
-  `(enqueue {:fn-var #'job-function :retry {:strategy :backoff}})`
-  which will cause your job to retry 8 times over about 10 days. The retry
-  mechanism is also fully customizable.
+
+  ```clojure
+  (enqueue {:fn-var #'job-function :retry {:strategy :backoff}})
+  ```
+
+  This causes your job to retry 8 times over about 10 days. The retry mechanism
+  is also fully customizable.
   [Docs](https://github.com/b-ryan/farmhand/wiki/Retrying-Jobs).
 
 ## Documentation

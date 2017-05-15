@@ -4,9 +4,9 @@
 
 FEATURES / BREAKING
 
-- The :retry map of jobs has been redone. The :strategy keyword should now use
-  keywords as its value rather than strings. Ie. `{:strategy :backoff}`. Also
-  the handling of the :retry map has changed. See the
+- The `:retry` map of jobs has been redone. The `:strategy` keyword should now
+  use keywords as its value rather than strings. Ie. `{:strategy :backoff}`.
+  Also the handling of the `:retry` map has changed. See the
   [docs](https://github.com/b-ryan/farmhand/wiki/Retrying-Jobs) for more
   details.
 
