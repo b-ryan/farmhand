@@ -36,7 +36,7 @@
         items (.zrangeWithScores jedis reg-key ^Long start ^Long end)
         comparator (if newest-first? #(compare %2 %1) #(compare %1 %2))]
     (->> items
-         (map (fn [^Tuple tuple] {:expiration (long (.getScore tuple))
+         (mapv (fn [^Tuple tuple] {:expiration (long (.getScore tuple))
                                   :job (.getElement tuple)}))
          (sort-by :expiration comparator))))
 
@@ -56,7 +56,7 @@
     (let [fetcher #(update-in % [:job] (partial jobs/fetch context))
           reg-key (registry-key context reg-name)
           items (->> (page-raw jedis reg-key options)
-                     (map fetcher))
+                     (mapv fetcher))
           last-page (last-page jedis reg-key options)
           page (or page 0)]
       {:items items
