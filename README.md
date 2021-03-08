@@ -111,5 +111,4 @@ preview of what it looks like:
 
 ## LICENSE
 
-Please see [LICENSE](https://github.com/b-ryan/farmhand/blob/master/LICENSE)
-for details.
+Distributed under the Eclipse Public License, the same as Clojure.
